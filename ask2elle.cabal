@@ -2,6 +2,7 @@ cabal-version:   3.0
 name:            ask2elle
 version:         0.1.0.0
 license:         Apache-2.0
+
 -- author:
 -- maintainer:
 -- copyright:
@@ -11,8 +12,19 @@ extra-doc-files: CHANGELOG.md
 -- extra-source-files:
 
 
+flag dev
+  description: Enable lean development
+  default:     False
+  manual:      True
+
 common warnings
-  ghc-options: -Wall
+  ghc-options:
+    -Wall -Wcompat -Wincomplete-uni-patterns
+    -Wmissing-deriving-strategies -Wredundant-constraints
+    -Wmissing-home-modules -Wmissing-export-lists -fwarn-unused-imports
+
+  if !flag(dev)
+    ghc-options: -Werror
 
 library
   import:           warnings

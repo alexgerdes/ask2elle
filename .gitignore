@@ -23,6 +23,5 @@ cabal.project.local~
 .HTF/
 .ghc.environment.*
 
-# ignore flake lock file
-flake.lock
+
 

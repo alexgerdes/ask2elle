@@ -1,6 +1,6 @@
 {
   description = "Ask2elle-Development-Environment";
-  inputs = { nixpkgs-master.url = "github:NixOS/nixpkgs/master"; };
+  inputs = { nixpkgs-master.url = "github:NixOS/nixpkgs/nixpkgs-unstable"; };
 
   outputs = inputs@{ self, nixpkgs-master }:
     let
@@ -21,6 +21,8 @@
             git
             gnumake
             nixfmt
+            ghc # should be fixed to ghc 9.2.7
+            haskell-language-server
           ]);
         };
 

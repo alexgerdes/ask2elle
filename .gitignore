@@ -1,3 +1,4 @@
+# ignore haskell files
 dist
 dist-*
 cabal-dev
@@ -21,3 +22,7 @@ cabal.project.local
 cabal.project.local~
 .HTF/
 .ghc.environment.*
+
+# ignore flake lock file
+flake.lock
+

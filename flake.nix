@@ -14,14 +14,13 @@
         let pkgs = nixpkgsFor system;
         in pkgs.stdenv.mkDerivation {
           name = "Standard-Dev-Environment-with-Utils";
-          buildInputs = (with pkgs; [
+          buildInputs = [ pkgs.haskell.compiler.ghc927 ] ++ (with pkgs; [
             bashInteractive
             cabal-install
             fd
             git
             gnumake
             nixfmt
-            ghc # should be fixed to ghc 9.2.7
             haskell-language-server
           ]);
         };

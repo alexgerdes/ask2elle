@@ -1,8 +1,13 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE TypeApplications #-}
+
 module Main (main) where
 
-import qualified MyLib (someFunc)
+
 
 main :: IO ()
 main = do
-  putStrLn "Hello, Haskell!"
-  MyLib.someFunc
+    let !x = 1 + 1
+    putStrLn "Hello, Haskell!"
+
+

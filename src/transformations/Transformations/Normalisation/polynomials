@@ -1,0 +1,20 @@
+3*x + (2+foo y)*x + 6*y*(x^2) - (z^2)*2*3
+
+make sum of left-products
+remove -: Replace each - with a +, and introduce -1 ...
+
+{3x, 2x, (foo y)x, 6yxx, -1zz2*3}
+
+for each expression:
+	multiply constants, and bring to front
+	sort variable names
+
+{3x, 2x, (foo y) x, 6xxy, -6zz}
+
+group expression with equal sorted variable lists, adding constants
+
+{5x, (foo y) x, 6xxy, -6zz}
+
+sort expressions from left to right
+
+Expr -> Maybe Expr

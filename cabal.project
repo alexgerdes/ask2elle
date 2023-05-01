@@ -1,0 +1,6 @@
+packages:
+        ../helium
+        ../Top
+        ../lvm
+        ../ideas
+        ./

@@ -21,6 +21,8 @@
             git
             gnumake
             nixfmt
+            zlib
+            sqlite
             ghc # should be fixed to ghc 9.2.7
             haskell-language-server
           ]);

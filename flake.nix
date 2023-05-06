@@ -2,7 +2,7 @@
   description = "Ask2elle-Development-Environment";
   inputs = { nixpkgs-master.url = "github:NixOS/nixpkgs/nixpkgs-unstable"; };
 
-  outputs = inputs@{ self, nixpkgs-master }:
+  outputs = inputs@{ self, nixpkgs-master, top, lvmlib, ... }:
     let
       # GENERAL
       supportedSystems =
@@ -14,7 +14,7 @@
         let pkgs = nixpkgsFor system;
         in pkgs.stdenv.mkDerivation {
           name = "Standard-Dev-Environment-with-Utils";
-          buildInputs = (with pkgs; [
+          buildInputs = [ pkgs.haskell.compiler.ghc927 ] ++ (with pkgs; [
             bashInteractive
             cabal-install
             fd
@@ -23,7 +23,6 @@
             nixfmt
             zlib
             sqlite
-            ghc # should be fixed to ghc 9.2.7
             haskell-language-server
           ]);
         };
@@ -34,11 +33,11 @@
             pkgs = nixpkgsFor system;
             stdDevEnv = mkDevEnv system;
             haskell-pkgs = pkgs.haskellPackages;
-            project = pkgs.stdenv.mkDerivation {
+            project = (pkgs.stdenv.mkDerivation {
               name = "Haskell-Dev-Environment-with-Utils";
               buildInputs = stdDevEnv.buildInputs
                 ++ (with haskell-pkgs; [ cabal-fmt fourmolu ]);
-            };
+            });
           in project;
       };
     in {

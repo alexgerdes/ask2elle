@@ -4,9 +4,9 @@ Ask2Elle is an intelligent programming tutor for Haskell
 # Dependencies
 
 ## Tools
-We recommend using `nix`, the package manager, for installing all the necessary tools to build the project. Simply type `nix develop` in your terminal to get started.
+We recommend using `nix`, the package manager, to install all the essential tools for building the project. To begin, enable [nix flakes](https://nixos.wiki/wiki/Flakes) option and enter `nix develop` in your terminal.
 
-We understand that some of you may have reservations about using it. For those individuals, we have provided an exclusive list of dependencies required to build the project. This list is sufficient for the project's construction and can be used as an alternative.
+We recognize that some of you might be hesitant to use nix. For those who prefer an alternative, the following list consists of required dependencies for the project. It is adequate for building the project and can be used as a substitute.
 ```bash
 bashInteractive
 cabal-install

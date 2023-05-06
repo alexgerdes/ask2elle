@@ -72,21 +72,6 @@ library helium-stage
   hs-source-dirs:   src/helium
   default-language: Haskell2010
 
--- library language-syntax
---   import:           common-local-dependencies
---   build-depends:
---     , base        ^>=4.16.4.0
---     , containers
---     , mtl
---     , uniplate
-
---   exposed-modules:
---     Language.Haskell.Generated.Syntax
---     -- Language.Haskell.Utility.PreludeS
-
---   -- Language.Haskell.Generated.Strategy
---   hs-source-dirs:   src/haskell-language
---   default-language: Haskell2010
 
 library haskell-language
   import:           common-local-dependencies
@@ -99,15 +84,6 @@ library haskell-language
 
   exposed-modules:  Language.Haskell.Generated.Syntax
 
-  -- Language.Haskell.Utility.SyntaxInstances
-  -- Language.Haskell.Utility.Utils
-
-  -- Language.Haskell.Utility.PrettyPrint
-  -- Language.Haskell.Utility.Views
-
-  -- Language.Haskell.Utility.PreludeS
-
-  -- Language.Haskell.Generated.Strategy
   hs-source-dirs:   src/haskell-language
   default-language: Haskell2010
 

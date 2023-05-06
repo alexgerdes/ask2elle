@@ -12,7 +12,7 @@
 -- Portability :  unknown
 --
 -- This module serves as a wrapper for the Helium compiler.
-module Helium.Helium
+module Helium.Utility.Helium
     ( -- * Compile functions
       compile
     , unsafeCompile
@@ -41,37 +41,51 @@ module Helium.Helium
     -- , module Language.Haskell.Compiler.Helium.Instances
     , parseFromString
     , parseFromString'
+    , typeOf
     )
 where
 
-import Helium.Main.CompileUtils hiding (doPhaseWithExit)
-import Helium.Main.PhaseDesugarer
-import Helium.Main.PhaseImport
-import Helium.Main.PhaseLexer
-import Helium.Main.PhaseParser
-import Helium.Main.PhaseResolveOperators
-import Helium.Main.PhaseStaticChecks
-import Helium.Main.PhaseTypeInferencer
+import Helium.Main.CompileUtils
+    ( ImportEnvironment (typeEnvironment)
+    , Module (..)
+    , Option (..)
+    , Phase
+    , TypeEnvironment
+    , addType
+    , combineImportEnvironments
+    , emptyEnvironment
+    )
+import Helium.Main.PhaseDesugarer (phaseDesugarer)
+import Helium.Main.PhaseImport (phaseImport)
+import Helium.Main.PhaseLexer (phaseLexer)
+import Helium.Main.PhaseParser (phaseParser)
+import Helium.Main.PhaseResolveOperators (phaseResolveOperators)
+import Helium.Main.PhaseStaticChecks (phaseStaticChecks)
+import Helium.Main.PhaseTypeInferencer (phaseTypeInferencer)
 import Helium.Main.PhaseTypingStrategies ()
 import Helium.ModuleSystem.DictionaryEnvironment
+    ( DictionaryEnvironment
+    )
 import Helium.Parser.Lexer (lexer)
 import Helium.Parser.ParseLibrary (HParser, runHParser)
 import Helium.Parser.Parser qualified as Parser
 import Helium.StaticAnalysis.Messages.HeliumMessages
-import Helium.StaticAnalysis.Messages.Messages
+    ( sortAndShowMessages
+    )
+import Helium.StaticAnalysis.Messages.Messages (HasMessage)
 import Helium.StaticAnalysis.Messages.Warnings (Warning (Shadow))
 import Helium.StaticAnalysis.Miscellaneous.TypeConversion (makeTpSchemeFromType)
 import Helium.Syntax.UHA_Pretty qualified as PP
 import Helium.Syntax.UHA_Range (noRange)
 import Helium.Syntax.UHA_Syntax
-import Helium.Syntax.UHA_Utils
+import Helium.Syntax.UHA_Utils (patternVars)
 import Helium.Utils.Utils (internalError)
 import Top.Types (TpScheme)
 
 import Control.Monad (ap, liftM)
-import Control.Monad.Trans
+import Control.Monad.Trans (MonadIO (..))
 import Data.Map qualified as M
-import Data.Maybe
+import Data.Maybe (listToMaybe, mapMaybe)
 import System.FilePath (joinPath, takeDirectory)
 import System.IO.Unsafe (unsafePerformIO)
 import System.Process (readProcess)
@@ -335,3 +349,9 @@ ignoreTypeSigs (Module_Module r n e b) = Module_Module r n e (filterBody b)
     filterRhs rhs@(RightHandSide_Guarded _ _ _) = rhs
     isTypeSig (Declaration_TypeSignature{}) = True
     isTypeSig _ = False
+
+typeOf :: (Monad m, MonadFail m) => String -> String -> m String
+typeOf fun txt = maybe (fail "No type") (return . show) $ M.lookup fun typeEnv
+  where
+    res = compile' False txt defaultOptions
+    typeEnv = either (const M.empty) (\(_, _, x, _, _) -> M.mapKeys show x) res

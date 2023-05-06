@@ -1,5 +1,40 @@
 {
   "nodes": {
+    "lvmlib": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1682974237,
+        "narHash": "sha256-KroiFKHDi6jMvmeEV7oqEOOA1WuWYN6ScgaCmcEF4WQ=",
+        "owner": "lllssskkk",
+        "repo": "askelle-lvmlib",
+        "rev": "d307e73115bdfebfed6a2ac8dc5da96eddfb0a8f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "lllssskkk",
+        "ref": "main",
+        "repo": "askelle-lvmlib",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1682929865,
+        "narHash": "sha256-jxVrgnf5QNjO+XoxDxUWtN2G5xyJSGZ5SWDQFxMuHxc=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "f2e9a130461950270f87630b11132323706b4d91",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "nixpkgs-master": {
       "locked": {
         "lastModified": 1681903854,
@@ -16,9 +51,46 @@
         "type": "github"
       }
     },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1682929865,
+        "narHash": "sha256-jxVrgnf5QNjO+XoxDxUWtN2G5xyJSGZ5SWDQFxMuHxc=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "f2e9a130461950270f87630b11132323706b4d91",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
-        "nixpkgs-master": "nixpkgs-master"
+        "lvmlib": "lvmlib",
+        "nixpkgs-master": "nixpkgs-master",
+        "top": "top"
+      }
+    },
+    "top": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1682972383,
+        "narHash": "sha256-Ci3x5pDtXfTpWxhJ0zGD5IO/TEGMTq+4vvWPlgRZyqg=",
+        "owner": "lllssskkk",
+        "repo": "Top",
+        "rev": "bed98d103ce5870febdcdee01c2b0cb541bcfc03",
+        "type": "github"
+      },
+      "original": {
+        "owner": "lllssskkk",
+        "ref": "master",
+        "repo": "Top",
+        "type": "github"
       }
     }
   },

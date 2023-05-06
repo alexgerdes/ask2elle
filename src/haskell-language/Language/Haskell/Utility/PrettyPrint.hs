@@ -20,7 +20,7 @@ module Language.Haskell.Utility.PrettyPrint
     ) where
 
 import Data.Generics.Uniplate.Direct
-import qualified Helium.Helium as H
+import qualified Helium.Utility.Helium as H
 import Ideas.Common.Library
 import Language.Haskell.Generated.Syntax
 import Language.Haskell.Utility.Views

@@ -47,10 +47,12 @@ import Data.List
 import Data.Maybe
 import qualified Data.Traversable as Trav
 import Data.Tree
+
 import Ideas.Common.Library hiding (bindings, check, label, try, vars)
 import Ideas.Common.Strategy.Abstract (onStrategyTree)
+
 import Language.Haskell.Generated.Syntax
-import Language.Haskell.Utility.PrettyPrint
+-- import Language.Haskell.Utility.PrettyPrint
 import Language.Haskell.Utility.SyntaxInstances
 
 {-import Ideas.Common.Strategy.Core hiding (Let, Var)-}

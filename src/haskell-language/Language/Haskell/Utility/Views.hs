@@ -30,8 +30,8 @@ module Language.Haskell.Utility.Views
     ) where
 
 import Data.Char (readLitChar)
-import Helium.Helium hiding (Body, Literal, MaybeName, Module, Name)
-import qualified Helium.Helium as Helium
+import Helium.Utility.Helium hiding (Body, Literal, MaybeName, Module, Name)
+import qualified Helium.Utility.Helium as Helium
 import Ideas.Common.Library hiding (from, to)
 import Language.Haskell.Generated.Syntax
 

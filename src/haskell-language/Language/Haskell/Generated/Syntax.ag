@@ -1,0 +1,450 @@
+-----------------------------------------------------------------------------
+-- Copyright 2014, Open Universiteit Nederland. This file is distributed
+-- under the terms of the GNU General Public License. For more information,
+-- see the file "LICENSE.txt", which is included in the distribution.
+-----------------------------------------------------------------------------
+-- |
+-- Maintainer  :  alex@botkes.nl
+-- Stability   :  provisional
+-- Portability :  unknown
+--
+-----------------------------------------------------------------------------
+optpragmas
+{
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances     #-}
+}
+
+module {Language.Haskell.Syntax}{}
+{
+import Data.Data
+import Data.Generics.Uniplate.Direct
+
+type HoleID = String
+
+rEFACTOR_FUNCTION_NAME, rEFACTOR_ARGS_NAME :: String
+rEFACTOR_FUNCTION_NAME = "thefunction"
+rEFACTOR_ARGS_NAME     = "?theargs"
+}
+
+set Every = Module Body Decl Expr Pat Alt FunBind GuardedExpr Literal Rhs Name
+            MaybeExpr MaybeName RefactorChoice
+
+deriving Every:  Eq, Show, Ord, Typeable, Data, Read
+
+-- | A Haskell source module
+data Module
+   | Module
+      name     :: MaybeName
+      body     :: Body
+
+data Body
+   | BHole
+   | Body
+      decls    :: Decls
+
+-- | Declarations
+data Decl
+   | DHole
+      id       :: HoleID
+   | DEmpty
+   | DFunBinds
+      funbinds :: FunBinds
+   | DPatBind
+      pat      :: Pat
+      rhs      :: Rhs
+
+type Decls = [Decl]
+
+-- | Expressions
+data Expr
+   | Hole
+      id       :: HoleID
+   | Feedback
+      feedback :: String
+      expr     :: Expr
+   | MustUse
+      expr     :: Expr
+   | Eta
+      n        :: Int
+      expr     :: Expr
+   | Refactor
+      expr     :: Expr
+      alts     :: RefactorChoices
+   | Case
+      expr     :: Expr
+      alts     :: Alts
+   | Con
+      name     :: Name
+   | If
+      cond     :: Expr
+      then     :: Expr
+      else     :: Expr
+   | InfixApp
+      left     :: MaybeExpr
+      op       :: Expr
+      right    :: MaybeExpr
+   | Lambda
+      pats     :: Pats
+      expr     :: Expr
+   | Let
+      decls    :: Decls
+      expr     :: Expr
+   | Lit
+      lit      :: Literal
+   | App
+      fun      :: Expr
+      args     :: Exprs
+   | Paren
+      expr     :: Expr
+   | Tuple
+      exprs    :: Exprs
+   | Var
+      name     :: Name
+   | Enum
+      from     :: Expr
+      then     :: MaybeExpr
+      to       :: MaybeExpr
+   | List
+      exprs    :: Exprs
+   | Neg 
+      expr     :: Expr
+
+type Exprs = [Expr]
+
+data RefactorChoice
+   | RefactorChoice
+      message :: String
+      expr    :: Expr
+
+type RefactorChoices = [RefactorChoice]
+
+data MaybeExpr
+   | NoExpr
+   | JustExpr 
+      expr     :: Expr
+
+-- | Alternatives
+data Alt
+   | AHole
+      id       :: HoleID
+   | Alt
+      feedback :: {Maybe String}
+      pat      :: Pat
+      rhs      :: Rhs
+   | AltEmpty
+
+type Alts = [Alt]
+
+-- | Function bindings
+data FunBind
+   | FBHole
+      id       :: HoleID
+   | FunBind
+      feedback :: {Maybe String}
+      name     :: Name
+      pats     :: Pats
+      rhs      :: Rhs
+
+type FunBinds = [FunBind]
+
+-- | Guarded expressions
+data GuardedExpr
+   | GExpr
+      guard    :: Expr
+      expr     :: Expr
+
+type GuardedExprs = [GuardedExpr]
+
+-- | Literal values
+data Literal
+   | LChar
+      val      :: Char
+   | LFloat
+      val      :: Float
+   | LInt
+      val      :: Int
+   | LString
+      val      :: String
+
+-- | Names
+
+type Names = [Name]
+
+data Name
+   | Ident
+      name     :: String
+   | Operator
+      name     :: String
+   | Special
+      name     :: String
+
+data MaybeName
+   | NoName
+   | JustName 
+      name     :: Name
+
+-- | Patterns
+data Pat
+   | PHole
+      id       :: HoleID
+   | PMultipleHole
+      id       :: HoleID
+   | PCon
+      name     :: Name
+      pats     :: Pats
+   | PInfixCon
+      left     :: Pat
+      name     :: Name
+      right    :: Pat
+   | PList
+      pats     :: Pats
+   | PLit
+      lit      :: Literal
+   | PParen
+      pat      :: Pat
+   | PTuple
+      pats     :: Pats
+   | PVar
+      name     :: Name
+   | PAs
+      name     :: Name
+      pat      :: Pat
+   | PWildcard
+
+type Pats = [Pat]
+
+-- | Right hand side
+data Rhs
+   | Rhs
+      expr     :: Expr
+      where    :: Decls
+   | GRhs
+      gexprs   :: GuardedExprs
+      where    :: Decls
+      
+{
+-- | Deriving uniplate instances
+-- ds = [ "Module", "Body", "Decl", "FunBind", "Pat", "Rhs", "Expr", "MaybeExpr", "Alt"
+--      , "Name", "MaybeName", "Literal", "GuardedExpr" ]
+-- 
+-- putStrLn $ "{-!\n" 
+--          ++ unlines ["deriving instance UniplateDirect " ++ d | d <- ds] 
+--          ++ unlines ["deriving instance UniplateDirect " ++ d ++ " " ++ d' | d <- ds, d' <- ds] 
+--          ++ "!-}"
+
+{-!
+deriving instance UniplateDirect Module
+deriving instance UniplateDirect Body
+deriving instance UniplateDirect Decl
+deriving instance UniplateDirect FunBind
+deriving instance UniplateDirect Pat
+deriving instance UniplateDirect [Pat]
+deriving instance UniplateDirect Rhs
+deriving instance UniplateDirect Expr
+deriving instance UniplateDirect MaybeExpr
+deriving instance UniplateDirect Alt
+deriving instance UniplateDirect Name
+deriving instance UniplateDirect MaybeName
+deriving instance UniplateDirect Literal
+deriving instance UniplateDirect GuardedExpr
+deriving instance UniplateDirect Module Module
+deriving instance UniplateDirect Module Body
+deriving instance UniplateDirect Module Decl
+deriving instance UniplateDirect Module FunBind
+deriving instance UniplateDirect Module Pat
+deriving instance UniplateDirect Module [Pat]
+deriving instance UniplateDirect Module Rhs
+deriving instance UniplateDirect Module Expr
+deriving instance UniplateDirect Module MaybeExpr
+deriving instance UniplateDirect Module Alt
+deriving instance UniplateDirect Module Name
+deriving instance UniplateDirect Module MaybeName
+deriving instance UniplateDirect Module Literal
+deriving instance UniplateDirect Module GuardedExpr
+deriving instance UniplateDirect Body Module
+deriving instance UniplateDirect Body Body
+deriving instance UniplateDirect Body Decl
+deriving instance UniplateDirect Body FunBind
+deriving instance UniplateDirect Body Pat
+deriving instance UniplateDirect Body [Pat]
+deriving instance UniplateDirect Body Rhs
+deriving instance UniplateDirect Body Expr
+deriving instance UniplateDirect Body MaybeExpr
+deriving instance UniplateDirect Body Alt
+deriving instance UniplateDirect Body Name
+deriving instance UniplateDirect Body MaybeName
+deriving instance UniplateDirect Body Literal
+deriving instance UniplateDirect Body GuardedExpr
+deriving instance UniplateDirect Decl Module
+deriving instance UniplateDirect Decl Body
+deriving instance UniplateDirect Decl Decl
+deriving instance UniplateDirect Decl FunBind
+deriving instance UniplateDirect Decl Pat
+deriving instance UniplateDirect Decl [Pat]
+deriving instance UniplateDirect Decl Rhs
+deriving instance UniplateDirect Decl Expr
+deriving instance UniplateDirect Decl MaybeExpr
+deriving instance UniplateDirect Decl Alt
+deriving instance UniplateDirect Decl Name
+deriving instance UniplateDirect Decl MaybeName
+deriving instance UniplateDirect Decl Literal
+deriving instance UniplateDirect Decl GuardedExpr
+deriving instance UniplateDirect FunBind Module
+deriving instance UniplateDirect FunBind Body
+deriving instance UniplateDirect FunBind Decl
+deriving instance UniplateDirect FunBind FunBind
+deriving instance UniplateDirect FunBind Pat
+deriving instance UniplateDirect FunBind [Pat]
+deriving instance UniplateDirect FunBind Rhs
+deriving instance UniplateDirect FunBind Expr
+deriving instance UniplateDirect FunBind MaybeExpr
+deriving instance UniplateDirect FunBind Alt
+deriving instance UniplateDirect FunBind Name
+deriving instance UniplateDirect FunBind MaybeName
+deriving instance UniplateDirect FunBind Literal
+deriving instance UniplateDirect FunBind GuardedExpr
+deriving instance UniplateDirect Pat Module
+deriving instance UniplateDirect Pat Body
+deriving instance UniplateDirect Pat Decl
+deriving instance UniplateDirect Pat FunBind
+deriving instance UniplateDirect Pat Pat
+deriving instance UniplateDirect Pat [Pat]
+deriving instance UniplateDirect Pat Rhs
+deriving instance UniplateDirect Pat Expr
+deriving instance UniplateDirect Pat MaybeExpr
+deriving instance UniplateDirect Pat Alt
+deriving instance UniplateDirect Pat Name
+deriving instance UniplateDirect Pat MaybeName
+deriving instance UniplateDirect Pat Literal
+deriving instance UniplateDirect Pat GuardedExpr
+deriving instance UniplateDirect Rhs Module
+deriving instance UniplateDirect Rhs Body
+deriving instance UniplateDirect Rhs Decl
+deriving instance UniplateDirect Rhs FunBind
+deriving instance UniplateDirect Rhs Pat
+deriving instance UniplateDirect Rhs [Pat]
+deriving instance UniplateDirect Rhs Rhs
+deriving instance UniplateDirect Rhs Expr
+deriving instance UniplateDirect Rhs MaybeExpr
+deriving instance UniplateDirect Rhs Alt
+deriving instance UniplateDirect Rhs Name
+deriving instance UniplateDirect Rhs MaybeName
+deriving instance UniplateDirect Rhs Literal
+deriving instance UniplateDirect Rhs GuardedExpr
+deriving instance UniplateDirect Expr Module
+deriving instance UniplateDirect Expr Body
+deriving instance UniplateDirect Expr Decl
+deriving instance UniplateDirect Expr FunBind
+deriving instance UniplateDirect Expr Pat
+deriving instance UniplateDirect Expr [Pat]
+deriving instance UniplateDirect Expr Rhs
+deriving instance UniplateDirect Expr Expr
+deriving instance UniplateDirect Expr MaybeExpr
+deriving instance UniplateDirect Expr Alt
+deriving instance UniplateDirect Expr Name
+deriving instance UniplateDirect Expr MaybeName
+deriving instance UniplateDirect Expr Literal
+deriving instance UniplateDirect Expr GuardedExpr
+deriving instance UniplateDirect MaybeExpr Module
+deriving instance UniplateDirect MaybeExpr Body
+deriving instance UniplateDirect MaybeExpr Decl
+deriving instance UniplateDirect MaybeExpr FunBind
+deriving instance UniplateDirect MaybeExpr Pat
+deriving instance UniplateDirect MaybeExpr [Pat]
+deriving instance UniplateDirect MaybeExpr Rhs
+deriving instance UniplateDirect MaybeExpr Expr
+deriving instance UniplateDirect MaybeExpr MaybeExpr
+deriving instance UniplateDirect MaybeExpr Alt
+deriving instance UniplateDirect MaybeExpr Name
+deriving instance UniplateDirect MaybeExpr MaybeName
+deriving instance UniplateDirect MaybeExpr Literal
+deriving instance UniplateDirect MaybeExpr GuardedExpr
+deriving instance UniplateDirect Alt Module
+deriving instance UniplateDirect Alt Body
+deriving instance UniplateDirect Alt Decl
+deriving instance UniplateDirect Alt FunBind
+deriving instance UniplateDirect Alt Pat
+deriving instance UniplateDirect Alt [Pat]
+deriving instance UniplateDirect Alt Rhs
+deriving instance UniplateDirect Alt Expr
+deriving instance UniplateDirect Alt MaybeExpr
+deriving instance UniplateDirect Alt Alt
+deriving instance UniplateDirect Alt Name
+deriving instance UniplateDirect Alt MaybeName
+deriving instance UniplateDirect Alt Literal
+deriving instance UniplateDirect Alt GuardedExpr
+deriving instance UniplateDirect Name Module
+deriving instance UniplateDirect Name Body
+deriving instance UniplateDirect Name Decl
+deriving instance UniplateDirect Name FunBind
+deriving instance UniplateDirect Name Pat
+deriving instance UniplateDirect Name [Pat]
+deriving instance UniplateDirect Name Rhs
+deriving instance UniplateDirect Name Expr
+deriving instance UniplateDirect Name MaybeExpr
+deriving instance UniplateDirect Name Alt
+deriving instance UniplateDirect Name Name
+deriving instance UniplateDirect Name MaybeName
+deriving instance UniplateDirect Name Literal
+deriving instance UniplateDirect Name GuardedExpr
+deriving instance UniplateDirect MaybeName Module
+deriving instance UniplateDirect MaybeName Body
+deriving instance UniplateDirect MaybeName Decl
+deriving instance UniplateDirect MaybeName FunBind
+deriving instance UniplateDirect MaybeName Pat
+deriving instance UniplateDirect MaybeName [Pat]
+deriving instance UniplateDirect MaybeName Rhs
+deriving instance UniplateDirect MaybeName Expr
+deriving instance UniplateDirect MaybeName MaybeExpr
+deriving instance UniplateDirect MaybeName Alt
+deriving instance UniplateDirect MaybeName Name
+deriving instance UniplateDirect MaybeName MaybeName
+deriving instance UniplateDirect MaybeName Literal
+deriving instance UniplateDirect MaybeName GuardedExpr
+deriving instance UniplateDirect Literal Module
+deriving instance UniplateDirect Literal Body
+deriving instance UniplateDirect Literal Decl
+deriving instance UniplateDirect Literal FunBind
+deriving instance UniplateDirect Literal Pat
+deriving instance UniplateDirect Literal [Pat]
+deriving instance UniplateDirect Literal Rhs
+deriving instance UniplateDirect Literal Expr
+deriving instance UniplateDirect Literal MaybeExpr
+deriving instance UniplateDirect Literal Alt
+deriving instance UniplateDirect Literal Name
+deriving instance UniplateDirect Literal MaybeName
+deriving instance UniplateDirect Literal Literal
+deriving instance UniplateDirect Literal GuardedExpr
+deriving instance UniplateDirect GuardedExpr Module
+deriving instance UniplateDirect GuardedExpr Body
+deriving instance UniplateDirect GuardedExpr Decl
+deriving instance UniplateDirect GuardedExpr FunBind
+deriving instance UniplateDirect GuardedExpr Pat
+deriving instance UniplateDirect GuardedExpr [Pat]
+deriving instance UniplateDirect GuardedExpr Rhs
+deriving instance UniplateDirect GuardedExpr Expr
+deriving instance UniplateDirect GuardedExpr MaybeExpr
+deriving instance UniplateDirect GuardedExpr Alt
+deriving instance UniplateDirect GuardedExpr Name
+deriving instance UniplateDirect GuardedExpr MaybeName
+deriving instance UniplateDirect GuardedExpr Literal
+deriving instance UniplateDirect GuardedExpr GuardedExpr
+deriving instance UniplateDirect RefactorChoice Module
+deriving instance UniplateDirect RefactorChoice Body
+deriving instance UniplateDirect RefactorChoice Decl
+deriving instance UniplateDirect RefactorChoice FunBind
+deriving instance UniplateDirect RefactorChoice Pat
+deriving instance UniplateDirect RefactorChoice [Pat]
+deriving instance UniplateDirect RefactorChoice Rhs
+deriving instance UniplateDirect RefactorChoice Expr
+deriving instance UniplateDirect RefactorChoice MaybeExpr
+deriving instance UniplateDirect RefactorChoice Alt
+deriving instance UniplateDirect RefactorChoice Name
+deriving instance UniplateDirect RefactorChoice MaybeName
+deriving instance UniplateDirect RefactorChoice Literal
+deriving instance UniplateDirect RefactorChoice GuardedExpr
+
+!-}
+}

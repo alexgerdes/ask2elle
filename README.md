@@ -46,6 +46,3 @@ Currently, the following steps must be performed manually to build the project. 
 6. Navigate to the askelle directory and run `askelle.cgi --all-scripts`. This generates files in the scripts folder.
 7. The environment is now set up.
 
-
-
-

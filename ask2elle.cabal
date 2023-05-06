@@ -9,15 +9,12 @@ license:         Apache-2.0
 build-type:      Simple
 extra-doc-files: CHANGELOG.md
 
--- extra-source-files:
-
-
 flag dev
   description: Enable lean development
   default:     False
   manual:      True
 
-common warnings
+common common-warnings
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns
     -Wmissing-deriving-strategies -Wredundant-constraints
@@ -26,29 +23,161 @@ common warnings
   if !flag(dev)
     ghc-options: -Werror
 
-library
-  import:           warnings
-  exposed-modules:  MyLib
-  build-depends:    base ^>=4.16.4.0
-  hs-source-dirs:   src
+common common-extensions
+  default-extensions:
+    BangPatterns
+    DataKinds
+    DerivingStrategies
+    ExplicitForAll
+    FlexibleContexts
+    FlexibleInstances
+    GADTs
+    ImportQualifiedPost
+    InstanceSigs
+    LambdaCase
+    MultiParamTypeClasses
+    OverloadedStrings
+    RankNTypes
+    ScopedTypeVariables
+    StandaloneDeriving
+    StandaloneKindSignatures
+    TypeApplications
+    TypeFamilies
+    TypeOperators
+
+common common-local-dependencies
+  build-depends:
+    , helium
+    , ideas
+    , Top
+
+library helium-stage
+  -- import:           common-warnings
+  import:           common-extensions
+  import:           common-local-dependencies
+  exposed-modules:
+    Helium.Helium
+    Helium.Utility.ImportEnvs
+    Helium.Utility.Instances
+
+  build-depends:
+    , base        ^>=4.16.4.0
+    , containers
+    , filepath
+    , mtl
+    , process
+
+  hs-source-dirs:   src/helium
+  default-language: Haskell2010
+
+-- library language-syntax
+--   import:           common-local-dependencies
+--   build-depends:
+--     , base        ^>=4.16.4.0
+--     , containers
+--     , mtl
+--     , uniplate
+
+--   exposed-modules:
+--     Language.Haskell.Generated.Syntax
+--     -- Language.Haskell.Utility.PreludeS
+
+--   -- Language.Haskell.Generated.Strategy
+--   hs-source-dirs:   src/haskell-language
+--   default-language: Haskell2010
+
+library haskell-language
+  import:           common-local-dependencies
+  build-depends:
+    , base          ^>=4.16.4.0
+    , containers
+    , helium-stage
+    , mtl
+    , QuickCheck
+    , uniplate
+
+  exposed-modules:
+    Language.Haskell.Generated.Syntax
+    Language.Haskell.Utility.PrettyPrint
+    Language.Haskell.Utility.SyntaxInstances
+    Language.Haskell.Utility.Utils
+    Language.Haskell.Utility.Views
+
+  -- Language.Haskell.Utility.PreludeS
+
+  -- Language.Haskell.Generated.Strategy
+  hs-source-dirs:   src/haskell-language
+  default-language: Haskell2010
+
+library transformation
+  import:           common-warnings
+
+  -- import:           common-extensions
+  import:           common-local-dependencies
+  exposed-modules:  Transformations
+  other-modules:
+    Transformations.Alpha
+    Transformations.Desugar
+    Transformations.Inline
+    Transformations.Lambda
+    Transformations.Normalisation.Boolean
+    Transformations.Normalisation.Boolean.DecTree
+    Transformations.Normalisation.Guards
+    Transformations.Normalisation.PatternMatching
+    Transformations.Normalisation.Polynomial
+    Transformations.Preprocess
+    Transformations.Substitute
+
+  -- Transformations.Test
+
+  build-depends:
+    , base              ^>=4.16.4.0
+    , containers
+    , haskell-language
+    , mtl
+    , QuickCheck
+    , uniplate
+
+  hs-source-dirs:   src/transformations
+  default-language: Haskell2010
+
+library ask2elle-lib
+  import:           common-warnings
+  import:           common-extensions
+  import:           common-local-dependencies
+  exposed-modules:  Debug
+  build-depends:
+    , base        ^>=4.16.4.0
+    , containers
+    , filepath
+    , mtl
+    , process
+    , uniplate
+
+  hs-source-dirs:   src/Ask2elle
   default-language: Haskell2010
 
 executable ask2elle
-  import:           warnings
+  import:           common-warnings
+  import:           common-extensions
   main-is:          Main.hs
   build-depends:
-    , ask2elle
-    , base      ^>=4.16.4.0
+    , ask2elle-lib
+    , base              ^>=4.16.4.0
+    , haskell-language
+    , helium-stage
+    , transformation
 
   hs-source-dirs:   app
   default-language: Haskell2010
 
 test-suite ask2elle-test
-  import:           warnings
+  import:           common-warnings
+  import:           common-extensions
   default-language: Haskell2010
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test
   main-is:          Main.hs
   build-depends:
-    , ask2elle
-    , base      ^>=4.16.4.0
+    , ask2elle-lib
+    , base          ^>=4.16.4.0

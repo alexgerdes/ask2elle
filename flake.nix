@@ -2,7 +2,7 @@
   description = "Ask2elle-Development-Environment";
   inputs = { nixpkgs-master.url = "github:NixOS/nixpkgs/nixpkgs-unstable"; };
 
-  outputs = inputs@{ self, nixpkgs-master, top, lvmlib, ... }:
+  outputs = inputs@{ self, nixpkgs-master, ... }:
     let
       # GENERAL
       supportedSystems =
@@ -37,7 +37,12 @@
               name = "Haskell-Dev-Environment-with-Utils";
               buildInputs = stdDevEnv.buildInputs
                 ++ (with haskell-pkgs; [ cabal-fmt fourmolu ]);
+              shellHook = ''
+                export PATH=~/.cabal/bin:$PATH;
+              '';
+
             });
+
           in project;
       };
     in {

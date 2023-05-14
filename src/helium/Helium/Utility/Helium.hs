@@ -39,16 +39,16 @@ import System.Process (readProcess)
 
 import Helium.Utility.Instances ()
 
-compile :: IsPrelude -> String -> AskelleOptions -> IO (Either String CompilationResult)
+compile :: IsPrelude -> T.Text -> AskelleOptions -> IO (Either T.Text CompilationResult)
 -- since we dont perfrom any side-effects, unsafePerformIO doesn't violate referential transparency rule.
 compile isPrelude txt opts = do
     ea <- runExceptT $ runCompile $ compile' isPrelude txt [Helium.Overloading, Helium.UseTutor] opts
     case ea of
-        Left ms -> pure . Left $ unlines ms
+        Left ms -> pure . Left $ T.unlines ms
         Right a -> pure $ Right a
 
-newtype Compile a = MkCompile {runCompile :: ExceptT [String] IO a}
-    deriving (Functor, Applicative, Monad, MonadIO, MonadError [String])
+newtype Compile a = MkCompile {runCompile :: ExceptT [T.Text] IO a}
+    deriving (Functor, Applicative, Monad, MonadIO, MonadError [T.Text])
 
 data AskelleOptions = AskelleOptions
     { filterTypeSigs :: Bool
@@ -80,7 +80,7 @@ getLvmPath = do
     (p : _) <- lines <$> readProcess "heliumpath" [] []
     pure [joinPath [takeDirectory p, "share", "lib"]]
 
-compile' :: IsPrelude -> String -> [Helium.Option] -> AskelleOptions -> Compile CompilationResult
+compile' :: IsPrelude -> T.Text -> [Helium.Option] -> AskelleOptions -> Compile CompilationResult
 compile' isPrelude codeSnippet heliumOptions askelleOptions = do
     lvmPath <- liftIO getLvmPath
 
@@ -88,7 +88,7 @@ compile' isPrelude codeSnippet heliumOptions askelleOptions = do
         fullName = "Student"
 
     -- Phase 1 : Lexing
-    (_lexWarnings, tokens) <- doPhaseWithExit $ Helium.phaseLexer fullName codeSnippet heliumOptions
+    (_lexWarnings, tokens) <- doPhaseWithExit $ Helium.phaseLexer fullName (T.unpack codeSnippet) heliumOptions
 
     -- Phase 2: Parsing
     parsedModule <- doPhaseWithExit $ Helium.phaseParser fullName tokens heliumOptions
@@ -144,7 +144,7 @@ doPhaseWithExit phase = MkCompile . ExceptT $ do
     result <- phase
     case result of
         Left errs -> do
-            let errs' = [HeliumSA.sortAndShowMessages errs]
+            let errs' = [T.pack $ HeliumSA.sortAndShowMessages errs]
             pure (Left errs')
         Right a -> pure $ pure a
 
@@ -233,13 +233,13 @@ filterImportEnvs ns = map f
     p :: Helium.Name -> tpScheme -> Bool
     p n _ = n `notElem` ns
 
-typeOf :: (MonadError String m, MonadIO m) => String -> String -> m String
+typeOf :: (MonadError String m, MonadIO m) => String -> T.Text -> m T.Text
 typeOf fun txt = do
     res <- liftIO $ compile False txt askelleDefaultOptions
     let typeEnv = either (const Map.empty) (Map.mapKeys show . getTypeEnv) res
     let fnTyp = Map.lookup fun typeEnv
     guardM (isNothing fnTyp) $ "We can't find type for" ++ show fun
-    pure . show $ fromJust fnTyp
+    pure . T.pack . show $ fromJust fnTyp
 
 --
 guardM :: (MonadError e m) => Bool -> e -> m ()

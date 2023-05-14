@@ -12,25 +12,26 @@ import Data.Either (isLeft)
 import Helium.Utility.Helium qualified as H
 import Language.Haskell.Generated.Syntax qualified as Syn
 
-type Type = String
-type Name = String
+type Type = T.Text
+type Name = T.Text
+type CodeSnippet = T.Text
 
 -- ! Run compile two times
-parse :: Name -> Type -> String -> IO (Either String Helium.Module)
+parse :: Name -> Type -> CodeSnippet -> IO (Either T.Text Helium.Module)
 parse fnName fnType fnImplementation = do
-    isDefined <- runExceptT $ H.typeOf fnName fnImplementation'
-    compilationResult <- H.compile False (if isLeft isDefined then typeDecl ++ fnImplementation' else fnImplementation') H.askelleDefaultOptions{H.filterTypeSigs = False}
+    -- isDefined <- runExceptT $ H.typeOf fnName fnImplementation'
+    compilationResult <- H.compile False (typeDecl `T.append` fnImplementation') H.askelleDefaultOptions{H.filterTypeSigs = False}
     pure $ fmap H.getModule compilationResult
   where
-    fnImplementation' :: String
+    fnImplementation' :: T.Text
     fnImplementation' = escape fnImplementation
-    typeDecl = fnName ++ " :: " ++ fnType ++ "\n"
+    typeDecl = fnName `T.append` " :: " `T.append` fnType `T.append` "\n"
 
 -- | Help functions
 -- ! escape converts string and text, back and forth. Can we do everything in Text mode?
-escape :: String -> String
+escape :: T.Text -> T.Text
 escape = inText (\txt -> foldr (\(a, b) txt' -> T.replace a b txt') txt rs)
   where
     rs = [("\\n", "\n"), ("\\\"", "\"")]
     t = T.pack
-    inText f = T.unpack . f . t
+    inText f = f

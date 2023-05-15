@@ -1,23 +1,24 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImportQualifiedPost #-}
 
-module Helium.Parse where
+module Helium.Helium where
 
 import Data.Maybe
-import Data.Text qualified as T
+import qualified Data.Text as T
 
-import Helium.Main.CompileUtils qualified as Helium
+import qualified Helium.Main.CompileUtils as Helium
 
 import Control.Monad.Except (runExceptT)
 import Data.Either (isLeft)
-import Helium.Utility.Helium qualified as H
-import Language.Haskell.Generated.Syntax qualified as Syn
+import qualified Helium.Utility.Compile as H
+import qualified Language.Haskell.Generated.Syntax as Syn
 
 type Type = T.Text
 type Name = T.Text
 type CodeSnippet = T.Text
 
 -- ! Run compile two times
-parse :: Name -> Type -> CodeSnippet -> IO (Either T.Text Helium.Module)
+parse :: Name -> Type -> CodeSnippet -> IO (Either (H.HeliumError, T.Text) Helium.Module)
 parse fnName fnType fnImplementation = do
     -- isDefined <- runExceptT $ H.typeOf fnName fnImplementation'
     compilationResult <- H.compile False (typeDecl `T.append` fnImplementation') H.askelleDefaultOptions{H.filterTypeSigs = False}

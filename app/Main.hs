@@ -1,12 +1,14 @@
 module Main (main) where
 
-import Helium.Parse
+import Data.Text.IO qualified as T
+import Helium.Helium
 import Helium.Utility.PrettyPrinter
-import qualified Data.Text.IO as T 
 
 main :: IO ()
 main = do
-    result <- parse "fromBin" "[Int] -> Int" "fromBin [] = 1"
+    result <- parse "fromBin" "[Int] -> Int" "fromBin [] = []"
     case result of
-        Left err -> T.putStrLn err
+        Left (errTyp, errText) -> do
+            print errTyp
+            T.putStrLn errText
         Right a -> T.putStrLn $ ppModule a

@@ -21,39 +21,40 @@ import Helium.StaticAnalysis.Messages.Messages
 
 -- import Helium.Syntax.UHA_Range
 import Helium.Syntax.UHA_Syntax
-    ( Alternative(..),
-      AnnotatedType(..),
-      Body(..),
-      Constructor(..),
-      ContextItem(..),
-      Declaration(..),
-      Export(..),
-      Expression(..),
-      FieldDeclaration(..),
-      Fixity(..),
-      FunctionBinding(..),
-      GuardedExpression(..),
-      Import(..),
-      ImportDeclaration(..),
-      ImportSpecification(..),
-      LeftHandSide(..),
-      Literal(..),
-      MaybeDeclarations(..),
-      MaybeExports(..),
-      MaybeExpression(..),
-      MaybeImportSpecification(..),
-      MaybeInt(..),
-      MaybeName(..),
-      MaybeNames(..),
-      Module(..),
-      Pattern(..),
-      Qualifier(..),
-      RecordExpressionBinding(..),
-      RecordPatternBinding(..),
-      RightHandSide(..),
-      SimpleType(..),
-      Statement(..),
-      Type(..) )
+    ( Alternative (..)
+    , AnnotatedType (..)
+    , Body (..)
+    , Constructor (..)
+    , ContextItem (..)
+    , Declaration (..)
+    , Export (..)
+    , Expression (..)
+    , FieldDeclaration (..)
+    , Fixity (..)
+    , FunctionBinding (..)
+    , GuardedExpression (..)
+    , Import (..)
+    , ImportDeclaration (..)
+    , ImportSpecification (..)
+    , LeftHandSide (..)
+    , Literal (..)
+    , MaybeDeclarations (..)
+    , MaybeExports (..)
+    , MaybeExpression (..)
+    , MaybeImportSpecification (..)
+    , MaybeInt (..)
+    , MaybeName (..)
+    , MaybeNames (..)
+    , Module (..)
+    , Pattern (..)
+    , Qualifier (..)
+    , RecordExpressionBinding (..)
+    , RecordPatternBinding (..)
+    , RightHandSide (..)
+    , SimpleType (..)
+    , Statement (..)
+    , Type (..)
+    )
 
 --------------------------------------------------------------------
 -- Derived instances

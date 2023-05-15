@@ -56,9 +56,8 @@ library helium-stage
   import:           common-extensions
   import:           common-local-dependencies
   exposed-modules:
-    Helium.Parse
-    Helium.Utility.Helium
-    Helium.Utility.Heliumold
+    Helium.Helium
+    Helium.Utility.Compile
     Helium.Utility.Instances
     Helium.Utility.PrettyPrinter
 

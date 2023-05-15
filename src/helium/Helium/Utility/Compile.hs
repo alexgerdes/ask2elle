@@ -1,7 +1,18 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoImportQualifiedPost #-}
 
-module Helium.Utility.Helium (compile, AskelleOptions (..), IsPrelude, CompilationResult (..), askelleDefaultOptions, typeOf) where
+module Helium.Utility.Compile (compile, AskelleOptions (..), IsPrelude, CompilationResult (..), askelleDefaultOptions, typeOf, HeliumError (..)) where
+
+import Control.Monad (ap, liftM)
+import Control.Monad.Except (ExceptT (..), MonadError (throwError), MonadTrans (lift), liftEither, runExceptT)
+import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Trans (MonadIO (..))
+import qualified Data.Map as Map
+import Data.Maybe (fromJust, isNothing, listToMaybe, mapMaybe)
+import qualified Data.Text as T
+import System.FilePath (joinPath, takeDirectory)
+import System.IO.Unsafe (unsafePerformIO)
+import System.Process (readProcess)
 
 import qualified Helium.Main.CompileUtils as Helium
 import qualified Helium.Main.PhaseDesugarer as Helium
@@ -16,8 +27,11 @@ import qualified Helium.ModuleSystem.DictionaryEnvironment as Helium
 import qualified Helium.Parser.Lexer as HeliumParser
 import qualified Helium.Parser.ParseLibrary as HeliumParser
 import qualified Helium.Parser.Parser as HeliumParser
+import qualified Helium.Parser.ResolveOperators as HeliumParser
 import qualified Helium.StaticAnalysis.Messages.HeliumMessages as HeliumSA
 import qualified Helium.StaticAnalysis.Messages.Messages as HeliumSA
+import qualified Helium.StaticAnalysis.Messages.StaticErrors as HeliumSA
+import qualified Helium.StaticAnalysis.Messages.TypeErrors as HeliumSA
 import qualified Helium.StaticAnalysis.Messages.Warnings as HeliumSA
 import qualified Helium.StaticAnalysis.Miscellaneous.TypeConversion as HeliumSA
 import qualified Helium.Syntax.UHA_Range as Helium
@@ -26,29 +40,18 @@ import qualified Helium.Syntax.UHA_Utils as Helium
 import qualified Helium.Utils.Utils as Helium
 import qualified Top.Types as Top
 
-import Control.Monad (ap, liftM)
-import Control.Monad.Except (ExceptT (..), MonadError (throwError), MonadTrans (lift), liftEither, runExceptT)
-import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Trans (MonadIO (..))
-import qualified Data.Map as Map
-import Data.Maybe (fromJust, isNothing, listToMaybe, mapMaybe)
-import qualified Data.Text as T
-import System.FilePath (joinPath, takeDirectory)
-import System.IO.Unsafe (unsafePerformIO)
-import System.Process (readProcess)
-
 import Helium.Utility.Instances ()
 
-compile :: IsPrelude -> T.Text -> AskelleOptions -> IO (Either T.Text CompilationResult)
+compile :: IsPrelude -> T.Text -> AskelleOptions -> IO (Either (HeliumError, T.Text) CompilationResult)
 -- since we dont perfrom any side-effects, unsafePerformIO doesn't violate referential transparency rule.
 compile isPrelude txt opts = do
     ea <- runExceptT $ runCompile $ compile' isPrelude txt [Helium.Overloading, Helium.UseTutor] opts
     case ea of
-        Left ms -> pure . Left $ T.unlines ms
+        Left (errTyp, errText) -> pure $ Left (errTyp, T.unlines errText)
         Right a -> pure $ Right a
 
-newtype Compile a = MkCompile {runCompile :: ExceptT [T.Text] IO a}
-    deriving (Functor, Applicative, Monad, MonadIO, MonadError [T.Text])
+newtype Compile a = MkCompile {runCompile :: ExceptT (HeliumError, [T.Text]) IO a}
+    deriving (Functor, Applicative, Monad, MonadIO, MonadError (HeliumError, [T.Text]))
 
 data AskelleOptions = AskelleOptions
     { filterTypeSigs :: Bool
@@ -74,6 +77,21 @@ data CompilationResult = CompilationResult
     , getModule :: Helium.Module
     }
 
+data HeliumError
+    = HeliumLexerError
+    | HeliumParserError
+    | HeliumResolverError
+    | HeliumStaticCheckError
+    | HeliumTypeError
+    deriving stock (Eq, Show)
+
+data HeliumPhase
+    = HeliumLexer
+    | HeliumParser
+    | HeliumResolver
+    | HeliumStaticChecker
+    | HeliumTypeChecker
+
 -- really fragile :-(
 getLvmPath :: IO [String]
 getLvmPath = do
@@ -88,10 +106,14 @@ compile' isPrelude codeSnippet heliumOptions askelleOptions = do
         fullName = "Student"
 
     -- Phase 1 : Lexing
-    (_lexWarnings, tokens) <- doPhaseWithExit $ Helium.phaseLexer fullName (T.unpack codeSnippet) heliumOptions
+    (_lexWarnings, tokens) <-
+        doPhaseWithExit HeliumLexer $
+            Helium.phaseLexer fullName (T.unpack codeSnippet) heliumOptions
 
     -- Phase 2: Parsing
-    parsedModule <- doPhaseWithExit $ Helium.phaseParser fullName tokens heliumOptions
+    parsedModule <-
+        doPhaseWithExit HeliumParser $
+            Helium.phaseParser fullName tokens heliumOptions
 
     -- Ignore type signatures if indicated in AskelleOptions
     -- Why? a hypothesis listed in weekly.md
@@ -108,12 +130,12 @@ compile' isPrelude codeSnippet heliumOptions askelleOptions = do
 
     -- Phase 4 : Resolving Operators
     resolvedModule <-
-        doPhaseWithExit $
+        doPhaseWithExit HeliumResolver $
             Helium.phaseResolveOperators parsedModule' importEnvs heliumOptions
 
     -- Phase 5: Static checking
     (localEnv, _typeSignatures, staticWarnings) <-
-        doPhaseWithExit $
+        doPhaseWithExit HeliumStaticChecker $
             Helium.phaseStaticChecks fullName resolvedModule importEnvsWithMod heliumOptions
 
     -- Phase 6: Kind inferencing (skipped)
@@ -128,7 +150,7 @@ compile' isPrelude codeSnippet heliumOptions askelleOptions = do
                 else Helium.NoOverloadingTypeCheck : heliumOptions
 
     (dictionaryEnv, afterTypeInferEnv, toplevelTypes, typeWarnings) <-
-        doPhaseWithExit $
+        doPhaseWithExit HeliumTypeChecker $
             Helium.phaseTypeInferencer "." fullName resolvedModule localEnv beforeTypeInferEnv newOptions
 
     pure $ CompilationResult dictionaryEnv afterTypeInferEnv toplevelTypes typeWarnings resolvedModule
@@ -139,13 +161,18 @@ compile' isPrelude codeSnippet heliumOptions askelleOptions = do
     applyWhen False _ x = x
 
 -- | Adjusted code from CompileUtils
-doPhaseWithExit :: HeliumSA.HasMessage err => Helium.Phase err a -> Compile a
-doPhaseWithExit phase = MkCompile . ExceptT $ do
-    result <- phase
+doPhaseWithExit :: HeliumSA.HasMessage err => HeliumPhase -> Helium.Phase err a -> Compile a
+doPhaseWithExit phase phaseFn = MkCompile . ExceptT $ do
+    let constructErr HeliumLexer = HeliumLexerError
+        constructErr HeliumParser = HeliumParserError
+        constructErr HeliumResolver = HeliumResolverError
+        constructErr HeliumStaticChecker = HeliumStaticCheckError
+        constructErr HeliumTypeChecker = HeliumTypeError
+    result <- phaseFn
     case result of
         Left errs -> do
             let errs' = [T.pack $ HeliumSA.sortAndShowMessages errs]
-            pure (Left errs')
+            pure (Left (constructErr phase, errs'))
         Right a -> pure $ pure a
 
 -- | Remove type signatures from top-level functions and functions in where clauses

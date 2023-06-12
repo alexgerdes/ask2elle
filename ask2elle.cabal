@@ -56,12 +56,10 @@ library helium-stage
   import:           common-warnings
   import:           common-extensions
   import:           common-local-dependencies
-  other-modules:
-    Helium.Utility.Compile
-    Helium.Utility.Instances
-
+  other-modules:    Helium.Utility.Instances
   exposed-modules:
     Helium.Helium
+    Helium.Utility.Compile
     Helium.Utility.PrettyPrinter
 
   build-depends:
@@ -99,7 +97,7 @@ test-suite ask2elle-test
   build-depends:
     , base          ^>=4.16.4.0
     , directory
+    , filepath
     , helium-stage
     , hspec
-    , filepath
     , text          ^>=2.0.2

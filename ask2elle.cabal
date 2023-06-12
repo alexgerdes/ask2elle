@@ -36,6 +36,7 @@ common common-extensions
     InstanceSigs
     LambdaCase
     MultiParamTypeClasses
+    NamedFieldPuns
     OverloadedStrings
     RankNTypes
     ScopedTypeVariables
@@ -52,65 +53,36 @@ common common-local-dependencies
     , Top
 
 library helium-stage
-  -- import:           common-warnings
+  import:           common-warnings
   import:           common-extensions
   import:           common-local-dependencies
-  exposed-modules:
-    Helium.Helium
+  other-modules:
     Helium.Utility.Compile
     Helium.Utility.Instances
+
+  exposed-modules:
+    Helium.Helium
     Helium.Utility.PrettyPrinter
 
   build-depends:
-    , base              ^>=4.16.4.0
+    , base        ^>=4.16.4.0
     , containers
     , filepath
-    , haskell-language
     , mtl
     , process
-    , text              ^>=2.0.2
+    , text        ^>=2.0.2
 
   hs-source-dirs:   src/helium
   default-language: Haskell2010
-
-library haskell-language
-  import:           common-local-dependencies
-  build-depends:
-    , base        ^>=4.16.4.0
-    , containers
-    , mtl
-    , QuickCheck
-    , uniplate
-
-  exposed-modules:  Language.Haskell.Generated.Syntax
-  hs-source-dirs:   src/haskell-language
-  default-language: Haskell2010
-
--- library ask2elle-lib
---   import:           common-warnings
---   import:           common-extensions
---   import:           common-local-dependencies
---   exposed-modules:  Debug
---   build-depends:
---     , base        ^>=4.16.4.0
---     , containers
---     , filepath
---     , mtl
---     , process
---     , uniplate
-
---   hs-source-dirs:   src/Ask2elle
---   default-language: Haskell2010
 
 executable ask2elle
   import:           common-warnings
   import:           common-extensions
   main-is:          Main.hs
   build-depends:
-    , base              ^>=4.16.4.0
-    , haskell-language
+    , base          ^>=4.16.4.0
     , helium-stage
-    , text              ^>=2.0.2
+    , text          ^>=2.0.2
 
   -- , ask2elle-lib
   hs-source-dirs:   app
@@ -123,6 +95,11 @@ test-suite ask2elle-test
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test
   main-is:          Main.hs
+  other-modules:    Helium.Test
   build-depends:
-    , ask2elle-lib
     , base          ^>=4.16.4.0
+    , directory
+    , helium-stage
+    , hspec
+    , filepath
+    , text          ^>=2.0.2

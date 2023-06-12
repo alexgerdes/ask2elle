@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
@@ -15,9 +13,9 @@
 -- Maintainer  :  alex@botkes.nl
 -- Stability   :  provisional
 -- Portability :  unknown
-module Helium.Utility.Instances where
+module Helium.Utility.Instances () where
 
-import Helium.StaticAnalysis.Messages.Messages
+import Helium.StaticAnalysis.Messages.Messages ()
 
 -- import Helium.Syntax.UHA_Range
 import Helium.Syntax.UHA_Syntax
@@ -57,136 +55,136 @@ import Helium.Syntax.UHA_Syntax
     )
 
 --------------------------------------------------------------------
--- Derived instances
+-- Derived  stock instances
 
-deriving instance Show Module
+deriving stock instance Show Module
 
-deriving instance Show Body
+deriving stock instance Show Body
 
-deriving instance Show MaybeName
+deriving stock instance Show MaybeName
 
-deriving instance Show MaybeNames
+deriving stock instance Show MaybeNames
 
-deriving instance Show MaybeExports
+deriving stock instance Show MaybeExports
 
-deriving instance Show Declaration
+deriving stock instance Show Declaration
 
-deriving instance Show ImportDeclaration
+deriving stock instance Show ImportDeclaration
 
-deriving instance Show Export
+deriving stock instance Show Export
 
-deriving instance Show Type
+deriving stock instance Show Type
 
-deriving instance Show RightHandSide
+deriving stock instance Show RightHandSide
 
-deriving instance Show Pattern
+deriving stock instance Show Pattern
 
-deriving instance Show Constructor
+deriving stock instance Show Constructor
 
-deriving instance Show FunctionBinding
+deriving stock instance Show FunctionBinding
 
-deriving instance Show MaybeInt
+deriving stock instance Show MaybeInt
 
-deriving instance Show Fixity
+deriving stock instance Show Fixity
 
-deriving instance Show MaybeDeclarations
+deriving stock instance Show MaybeDeclarations
 
-deriving instance Show SimpleType
+deriving stock instance Show SimpleType
 
-deriving instance Show ContextItem
+deriving stock instance Show ContextItem
 
-deriving instance Show MaybeImportSpecification
+deriving stock instance Show MaybeImportSpecification
 
-deriving instance Show Expression
+deriving stock instance Show Expression
 
-deriving instance Show RecordPatternBinding
+deriving stock instance Show RecordPatternBinding
 
-deriving instance Show Literal
+deriving stock instance Show Literal
 
-deriving instance Show GuardedExpression
+deriving stock instance Show GuardedExpression
 
-deriving instance Show FieldDeclaration
+deriving stock instance Show FieldDeclaration
 
-deriving instance Show AnnotatedType
+deriving stock instance Show AnnotatedType
 
-deriving instance Show LeftHandSide
+deriving stock instance Show LeftHandSide
 
-deriving instance Show ImportSpecification
+deriving stock instance Show ImportSpecification
 
-deriving instance Show RecordExpressionBinding
+deriving stock instance Show RecordExpressionBinding
 
-deriving instance Show MaybeExpression
+deriving stock instance Show MaybeExpression
 
-deriving instance Show Statement
+deriving stock instance Show Statement
 
-deriving instance Show Qualifier
+deriving stock instance Show Qualifier
 
-deriving instance Show Alternative
+deriving stock instance Show Alternative
 
-deriving instance Show Import
+deriving stock instance Show Import
 
-deriving instance Eq Module
+deriving stock instance Eq Module
 
-deriving instance Eq Body
+deriving stock instance Eq Body
 
-deriving instance Eq MaybeName
+deriving stock instance Eq MaybeName
 
-deriving instance Eq MaybeNames
+deriving stock instance Eq MaybeNames
 
-deriving instance Eq MaybeExports
+deriving stock instance Eq MaybeExports
 
-deriving instance Eq ImportDeclaration
+deriving stock instance Eq ImportDeclaration
 
-deriving instance Eq Export
+deriving stock instance Eq Export
 
-deriving instance Eq Expression
+deriving stock instance Eq Expression
 
-deriving instance Eq Type
+deriving stock instance Eq Type
 
-deriving instance Eq RecordExpressionBinding
+deriving stock instance Eq RecordExpressionBinding
 
-deriving instance Eq Literal
+deriving stock instance Eq Literal
 
-deriving instance Eq Declaration
+deriving stock instance Eq Declaration
 
-deriving instance Eq Pattern
+deriving stock instance Eq Pattern
 
-deriving instance Eq MaybeExpression
+deriving stock instance Eq MaybeExpression
 
-deriving instance Eq Statement
+deriving stock instance Eq Statement
 
-deriving instance Eq Qualifier
+deriving stock instance Eq Qualifier
 
-deriving instance Eq Alternative
+deriving stock instance Eq Alternative
 
-deriving instance Eq RightHandSide
+deriving stock instance Eq RightHandSide
 
-deriving instance Eq Constructor
+deriving stock instance Eq Constructor
 
-deriving instance Eq FunctionBinding
+deriving stock instance Eq FunctionBinding
 
-deriving instance Eq MaybeInt
+deriving stock instance Eq MaybeInt
 
-deriving instance Eq Fixity
+deriving stock instance Eq Fixity
 
-deriving instance Eq MaybeDeclarations
+deriving stock instance Eq MaybeDeclarations
 
-deriving instance Eq SimpleType
+deriving stock instance Eq SimpleType
 
-deriving instance Eq FieldDeclaration
+deriving stock instance Eq FieldDeclaration
 
-deriving instance Eq AnnotatedType
+deriving stock instance Eq AnnotatedType
 
-deriving instance Eq LeftHandSide
+deriving stock instance Eq LeftHandSide
 
-deriving instance Eq ContextItem
+deriving stock instance Eq ContextItem
 
-deriving instance Eq RecordPatternBinding
+deriving stock instance Eq RecordPatternBinding
 
-deriving instance Eq GuardedExpression
+deriving stock instance Eq GuardedExpression
 
-deriving instance Eq MaybeImportSpecification
+deriving stock instance Eq MaybeImportSpecification
 
-deriving instance Eq ImportSpecification
+deriving stock instance Eq ImportSpecification
 
-deriving instance Eq Import
+deriving stock instance Eq Import

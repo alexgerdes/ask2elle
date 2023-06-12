@@ -1,6 +1,6 @@
 {
   description = "Ask2elle-Development-Environment";
-  inputs = { nixpkgs-master.url = "github:NixOS/nixpkgs/nixpkgs-unstable"; };
+  inputs = { nixpkgs-master.url = "github:NixOS/nixpkgs/master"; };
 
   outputs = inputs@{ self, nixpkgs-master, ... }:
     let
@@ -10,11 +10,16 @@
 
       perSystem = nixpkgs-master.lib.genAttrs supportedSystems;
       nixpkgsFor = system: nixpkgs-master.legacyPackages.${system};
+
       mkDevEnv = system:
-        let pkgs = nixpkgsFor system;
+        let
+          pkgs = nixpkgsFor system;
+          hls = pkgs.haskell-language-server.override {
+            supportedGhcVersions = [ "92" ];
+          };
         in pkgs.stdenv.mkDerivation {
           name = "Standard-Dev-Environment-with-Utils";
-          buildInputs = [ pkgs.haskell.compiler.ghc927 ] ++ (with pkgs; [
+          buildInputs = [ pkgs.ghc hls ] ++ (with pkgs; [
             bashInteractive
             cabal-install
             fd
@@ -23,7 +28,6 @@
             nixfmt
             zlib
             sqlite
-            haskell-language-server
           ]);
         };
 

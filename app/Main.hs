@@ -6,7 +6,8 @@ import Helium.Utility.PrettyPrinter
 
 main :: IO ()
 main = do
-    result <- parse "fromBin" "[Int] -> Int" "fromBin [] = []"
+    code <- T.readFile "./heliumTestCases/Success/correct/Eq.hs"
+    result <- compileCode "Eq1" code
     case result of
         Left (errTyp, errText) -> do
             print errTyp

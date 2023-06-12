@@ -42,3 +42,7 @@ parse "fromBin" "[LvmLang.Int] -> LvmLang.Int" "fromBin [] = 1"
 This seesm easy, why dont we just remove the leading prefix, rather than erasing the type signature?
 I suppose, its just a hypothesis, in `askelle` , we were actually reading from the cache file, where cache file is filled with `LvmLang`, and cache file is always automatically generated, it's computational intense and pointless to remove it every time. Also, if `Helium` fails to do `type inference` , it could leads to a conclusion that student's solution has flaws in itself.
 
+
+--- 
+1. when checking `heliumTestCases/correct/Reexport2` using helium frontend, it seems to me that our current approach cannot handle module imports other than the standard prelude. As checking `import <moduleName>` requires the existence of `<moduleName>.lvm` which is the compiled redentition of `<moduleName>`.
+2. all modules in `failed` should pass the type checker, but they dont

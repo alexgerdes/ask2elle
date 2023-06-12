@@ -1,38 +1,33 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE NoImportQualifiedPost #-}
+module Helium.Helium (compileFn, compileCode) where
 
-module Helium.Helium where
+import Data.Text qualified as T
 
-import Data.Maybe
-import qualified Data.Text as T
-
-import qualified Helium.Main.CompileUtils as Helium
-
-import Control.Monad.Except (runExceptT)
-import Data.Either (isLeft)
-import qualified Helium.Utility.Compile as H
-import qualified Language.Haskell.Generated.Syntax as Syn
+import Helium.Main.CompileUtils qualified as Helium
+import Helium.Utility.Compile qualified as Helium
 
 type Type = T.Text
 type Name = T.Text
 type CodeSnippet = T.Text
+type Module = T.Text
 
--- ! Run compile two times
-parse :: Name -> Type -> CodeSnippet -> IO (Either (H.HeliumError, T.Text) Helium.Module)
-parse fnName fnType fnImplementation = do
-    -- isDefined <- runExceptT $ H.typeOf fnName fnImplementation'
-    compilationResult <- H.compile False (typeDecl `T.append` fnImplementation') H.askelleDefaultOptions{H.filterTypeSigs = False}
-    pure $ fmap H.getModule compilationResult
+
+compileFn :: Name -> Type -> CodeSnippet -> IO (Either (Helium.HeliumError, T.Text) Helium.Module)
+compileFn fnName fnType fnImplementation = do
+    -- isDefined <- runExceptT $ Helium.typeOf fnName fnImplementation'
+    compilationResult <- Helium.compile False (typeDecl `T.append` fnImplementation') Helium.askelleDefaultOptions
+    pure $ fmap Helium.getModule compilationResult
   where
     fnImplementation' :: T.Text
     fnImplementation' = escape fnImplementation
+    typeDecl :: T.Text
     typeDecl = fnName `T.append` " :: " `T.append` fnType `T.append` "\n"
 
--- | Help functions
--- ! escape converts string and text, back and forth. Can we do everything in Text mode?
+compileCode :: Module -> CodeSnippet -> IO (Either (Helium.HeliumError, T.Text) Helium.Module)
+compileCode moduleName code = do
+    compilationResult <- Helium.compile False (escape code) Helium.askelleDefaultOptions{Helium.moduleName = Just moduleName}
+    pure $ fmap Helium.getModule compilationResult
+
 escape :: T.Text -> T.Text
-escape = inText (\txt -> foldr (\(a, b) txt' -> T.replace a b txt') txt rs)
+escape text = foldr (\(a, b) txt' -> T.replace a b txt') text rs
   where
     rs = [("\\n", "\n"), ("\\\"", "\"")]
-    t = T.pack
-    inText f = f

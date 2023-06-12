@@ -4,3 +4,6 @@ packages:
         ../lvm
         ../Top
         ./
+
+tests: True
+

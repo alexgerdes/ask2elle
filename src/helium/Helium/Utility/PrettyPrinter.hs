@@ -1,6 +1,5 @@
-module Helium.Utility.PrettyPrinter where
+module Helium.Utility.PrettyPrinter (ppModule, ppDeclaration, ppExpression) where
 
-import Data.Map qualified as Map
 import Helium.Main.CompileUtils qualified as Helium
 import Helium.Syntax.UHA_Pretty qualified as PP
 import Helium.Syntax.UHA_Syntax qualified as Helium

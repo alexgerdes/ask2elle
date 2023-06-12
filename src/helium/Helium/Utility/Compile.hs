@@ -1,49 +1,40 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NoImportQualifiedPost #-}
 
 module Helium.Utility.Compile (compile, AskelleOptions (..), IsPrelude, CompilationResult (..), askelleDefaultOptions, typeOf, HeliumError (..)) where
 
-import Control.Monad (ap, liftM)
-import Control.Monad.Except (ExceptT (..), MonadError (throwError), MonadTrans (lift), liftEither, runExceptT)
+import Control.Monad.Except (ExceptT (..), MonadError (throwError), runExceptT)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Trans (MonadIO (..))
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 import Data.Maybe (fromJust, isNothing, listToMaybe, mapMaybe)
-import qualified Data.Text as T
+import Data.Text qualified as T
 import System.FilePath (joinPath, takeDirectory)
-import System.IO.Unsafe (unsafePerformIO)
 import System.Process (readProcess)
 
-import qualified Helium.Main.CompileUtils as Helium
-import qualified Helium.Main.PhaseDesugarer as Helium
-import qualified Helium.Main.PhaseImport as Helium
-import qualified Helium.Main.PhaseLexer as Helium
-import qualified Helium.Main.PhaseParser as Helium
-import qualified Helium.Main.PhaseResolveOperators as Helium
-import qualified Helium.Main.PhaseStaticChecks as Helium
-import qualified Helium.Main.PhaseTypeInferencer as Helium
-import qualified Helium.Main.PhaseTypingStrategies ()
-import qualified Helium.ModuleSystem.DictionaryEnvironment as Helium
-import qualified Helium.Parser.Lexer as HeliumParser
-import qualified Helium.Parser.ParseLibrary as HeliumParser
-import qualified Helium.Parser.Parser as HeliumParser
-import qualified Helium.Parser.ResolveOperators as HeliumParser
-import qualified Helium.StaticAnalysis.Messages.HeliumMessages as HeliumSA
-import qualified Helium.StaticAnalysis.Messages.Messages as HeliumSA
-import qualified Helium.StaticAnalysis.Messages.StaticErrors as HeliumSA
-import qualified Helium.StaticAnalysis.Messages.TypeErrors as HeliumSA
-import qualified Helium.StaticAnalysis.Messages.Warnings as HeliumSA
-import qualified Helium.StaticAnalysis.Miscellaneous.TypeConversion as HeliumSA
-import qualified Helium.Syntax.UHA_Range as Helium
-import qualified Helium.Syntax.UHA_Syntax as Helium
-import qualified Helium.Syntax.UHA_Utils as Helium
-import qualified Helium.Utils.Utils as Helium
-import qualified Top.Types as Top
+import Helium.Main.CompileUtils qualified as Helium
+import Helium.Main.PhaseImport qualified as Helium
+import Helium.Main.PhaseLexer qualified as Helium
+import Helium.Main.PhaseParser qualified as Helium
+import Helium.Main.PhaseResolveOperators qualified as Helium
+import Helium.Main.PhaseStaticChecks qualified as Helium
+import Helium.Main.PhaseTypeInferencer qualified as Helium
+import Helium.Main.PhaseTypingStrategies qualified ()
+import Helium.ModuleSystem.DictionaryEnvironment qualified as Helium
+import Helium.Parser.Lexer qualified as HeliumParser
+import Helium.Parser.ParseLibrary qualified as HeliumParser
+import Helium.Parser.Parser qualified as HeliumParser
+import Helium.StaticAnalysis.Messages.HeliumMessages qualified as HeliumSA
+import Helium.StaticAnalysis.Messages.Messages qualified as HeliumSA
+import Helium.StaticAnalysis.Messages.Warnings qualified as HeliumSA
+import Helium.StaticAnalysis.Miscellaneous.TypeConversion qualified as HeliumSA
+import Helium.Syntax.UHA_Range qualified as Helium
+import Helium.Syntax.UHA_Syntax qualified as Helium
+import Helium.Utils.Utils qualified as Helium
+import Top.Types qualified as Top
 
 import Helium.Utility.Instances ()
 
 compile :: IsPrelude -> T.Text -> AskelleOptions -> IO (Either (HeliumError, T.Text) CompilationResult)
--- since we dont perfrom any side-effects, unsafePerformIO doesn't violate referential transparency rule.
 compile isPrelude txt opts = do
     ea <- runExceptT $ runCompile $ compile' isPrelude txt [Helium.Overloading, Helium.UseTutor] opts
     case ea of
@@ -51,7 +42,7 @@ compile isPrelude txt opts = do
         Right a -> pure $ Right a
 
 newtype Compile a = MkCompile {runCompile :: ExceptT (HeliumError, [T.Text]) IO a}
-    deriving (Functor, Applicative, Monad, MonadIO, MonadError (HeliumError, [T.Text]))
+    deriving newtype (Functor, Applicative, Monad, MonadIO, MonadError (HeliumError, [T.Text]))
 
 data AskelleOptions = AskelleOptions
     { filterTypeSigs :: Bool
@@ -61,11 +52,12 @@ data AskelleOptions = AskelleOptions
     -- ^ Each import is specified as a pair of a function name and a type signature.
     -- | For instance, you could import the isJust function using the tuple
     -- | ("isJust", "Maybe a -> Bool")
+    , moduleName :: Maybe T.Text
     }
 
 -- By default, ignore the type signature and empty imports
 askelleDefaultOptions :: AskelleOptions
-askelleDefaultOptions = AskelleOptions True []
+askelleDefaultOptions = AskelleOptions True [] Nothing
 
 type IsPrelude = Bool
 
@@ -81,16 +73,9 @@ data HeliumError
     = HeliumLexerError
     | HeliumParserError
     | HeliumResolverError
-    | HeliumStaticCheckError
-    | HeliumTypeError
+    | HeliumStaticCheckerError
+    | HeliumTypeCheckerError
     deriving stock (Eq, Show)
-
-data HeliumPhase
-    = HeliumLexer
-    | HeliumParser
-    | HeliumResolver
-    | HeliumStaticChecker
-    | HeliumTypeChecker
 
 -- really fragile :-(
 getLvmPath :: IO [String]
@@ -99,30 +84,29 @@ getLvmPath = do
     pure [joinPath [takeDirectory p, "share", "lib"]]
 
 compile' :: IsPrelude -> T.Text -> [Helium.Option] -> AskelleOptions -> Compile CompilationResult
-compile' isPrelude codeSnippet heliumOptions askelleOptions = do
+compile' isPrelude codeSnippet heliumOptions (AskelleOptions{filterTypeSigs, imports, moduleName}) = do
     lvmPath <- liftIO getLvmPath
 
-    let AskelleOptions filterTypSigs imports = askelleOptions
-        fullName = "Student"
+    let moduleName' = maybe "Student" T.unpack moduleName
 
     -- Phase 1 : Lexing
     (_lexWarnings, tokens) <-
-        doPhaseWithExit HeliumLexer $
-            Helium.phaseLexer fullName (T.unpack codeSnippet) heliumOptions
+        doPhaseWithExit HeliumLexerError $
+            Helium.phaseLexer moduleName' (T.unpack codeSnippet) heliumOptions
 
     -- Phase 2: Parsing
     parsedModule <-
-        doPhaseWithExit HeliumParser $
-            Helium.phaseParser fullName tokens heliumOptions
+        doPhaseWithExit HeliumParserError $
+            Helium.phaseParser moduleName' tokens heliumOptions
 
     -- Ignore type signatures if indicated in AskelleOptions
     -- Why? a hypothesis listed in weekly.md
-    let parsedModule' = applyWhen filterTypSigs ignoreTypeSigs parsedModule
+    let parsedModule' = applyWhen filterTypeSigs ignoreTypeSigs parsedModule
 
     -- Phase 3 : Importing
     -- We have a static import environment
     (_indirectionDecls, importEnvsWithMod) <-
-        liftIO $ Helium.phaseImport fullName parsedModule' lvmPath []
+        liftIO $ Helium.phaseImport moduleName' parsedModule' lvmPath []
 
     let ns = toplevelNames parsedModule
         importEnvs' = map (\(_, b, _) -> b) importEnvsWithMod
@@ -130,13 +114,13 @@ compile' isPrelude codeSnippet heliumOptions askelleOptions = do
 
     -- Phase 4 : Resolving Operators
     resolvedModule <-
-        doPhaseWithExit HeliumResolver $
+        doPhaseWithExit HeliumResolverError $
             Helium.phaseResolveOperators parsedModule' importEnvs heliumOptions
 
     -- Phase 5: Static checking
     (localEnv, _typeSignatures, staticWarnings) <-
-        doPhaseWithExit HeliumStaticChecker $
-            Helium.phaseStaticChecks fullName resolvedModule importEnvsWithMod heliumOptions
+        doPhaseWithExit HeliumStaticCheckerError $
+            Helium.phaseStaticChecks moduleName' resolvedModule importEnvsWithMod heliumOptions
 
     -- Phase 6: Kind inferencing (skipped)
     let combinedEnv = foldr Helium.combineImportEnvironments localEnv importEnvs
@@ -150,8 +134,8 @@ compile' isPrelude codeSnippet heliumOptions askelleOptions = do
                 else Helium.NoOverloadingTypeCheck : heliumOptions
 
     (dictionaryEnv, afterTypeInferEnv, toplevelTypes, typeWarnings) <-
-        doPhaseWithExit HeliumTypeChecker $
-            Helium.phaseTypeInferencer "." fullName resolvedModule localEnv beforeTypeInferEnv newOptions
+        doPhaseWithExit HeliumTypeCheckerError $
+            Helium.phaseTypeInferencer "." moduleName' resolvedModule localEnv beforeTypeInferEnv newOptions
 
     pure $ CompilationResult dictionaryEnv afterTypeInferEnv toplevelTypes typeWarnings resolvedModule
   where
@@ -161,18 +145,13 @@ compile' isPrelude codeSnippet heliumOptions askelleOptions = do
     applyWhen False _ x = x
 
 -- | Adjusted code from CompileUtils
-doPhaseWithExit :: HeliumSA.HasMessage err => HeliumPhase -> Helium.Phase err a -> Compile a
-doPhaseWithExit phase phaseFn = MkCompile . ExceptT $ do
-    let constructErr HeliumLexer = HeliumLexerError
-        constructErr HeliumParser = HeliumParserError
-        constructErr HeliumResolver = HeliumResolverError
-        constructErr HeliumStaticChecker = HeliumStaticCheckError
-        constructErr HeliumTypeChecker = HeliumTypeError
+doPhaseWithExit :: HeliumSA.HasMessage err => HeliumError -> Helium.Phase err a -> Compile a
+doPhaseWithExit phaseErrorConstructor phaseFn = MkCompile . ExceptT $ do
     result <- phaseFn
     case result of
         Left errs -> do
             let errs' = [T.pack $ HeliumSA.sortAndShowMessages errs]
-            pure (Left (constructErr phase, errs'))
+            pure (Left (phaseErrorConstructor, errs'))
         Right a -> pure $ pure a
 
 -- | Remove type signatures from top-level functions and functions in where clauses
@@ -243,8 +222,8 @@ parseFromString p string =
                 Left _ -> Helium.internalError "ParseFromString" "parseFromString" ("parse error in " ++ string)
                 Right x -> x
 
-parseFromString' :: [Helium.Option] -> HeliumParser.HParser a -> String -> Maybe a
-parseFromString' options p string =
+_parseFromString' :: [Helium.Option] -> HeliumParser.HParser a -> String -> Maybe a
+_parseFromString' _options p string =
     case HeliumParser.lexer [] "ParseFromString" string of
         Left _ -> Nothing
         Right (tokens, _) ->

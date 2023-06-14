@@ -99,7 +99,7 @@ compile' isPrelude codeSnippet heliumOptions (AskelleOptions{filterTypeSigs, imp
         doPhaseWithExit HeliumParserError $
             Helium.phaseParser moduleName' tokens heliumOptions
 
-    -- Ignore type signatures if indicated in AskelleOptions
+    -- Ignore type signatures if indicated in AskelleOptions <- This can be tuned in AskelleOptions
     -- Why? a hypothesis listed in weekly.md
     let parsedModule' = applyWhen filterTypeSigs ignoreTypeSigs parsedModule
 
@@ -139,7 +139,7 @@ compile' isPrelude codeSnippet heliumOptions (AskelleOptions{filterTypeSigs, imp
 
     pure $ CompilationResult dictionaryEnv afterTypeInferEnv toplevelTypes typeWarnings resolvedModule
   where
-    -- base function, but not included until base-4.18.0.0
+    -- new base function, but not included until base-4.18.0.0
     applyWhen :: Bool -> (a -> a) -> a -> a
     applyWhen True f x = f x
     applyWhen False _ x = x

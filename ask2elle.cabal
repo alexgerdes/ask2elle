@@ -79,6 +79,7 @@ executable ask2elle
   main-is:          Main.hs
   build-depends:
     , base          ^>=4.16.4.0
+    , bytestring
     , helium-stage
     , text          ^>=2.0.2
 
@@ -96,8 +97,10 @@ test-suite ask2elle-test
   other-modules:    Helium.Test
   build-depends:
     , base          ^>=4.16.4.0
+    , bytestring
     , directory
     , filepath
     , helium-stage
     , hspec
+    , hspec-core
     , text          ^>=2.0.2

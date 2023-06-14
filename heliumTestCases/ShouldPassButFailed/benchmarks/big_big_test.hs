@@ -1,4 +1,4 @@
-
+-- ! Error with newline character in a string
 --==========================================================--
 --=== The parser.                                        ===--
 --===                                          Parser.hs ===--

@@ -1,4 +1,4 @@
-
+-- ! Error with newline character 
 -- ==========================================================--
 -- === Raw lexical analysis (tokenisation) of source      ===--
 -- ===                                           Lexer.hs ===--

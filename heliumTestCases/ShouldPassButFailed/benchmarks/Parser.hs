@@ -1,3 +1,5 @@
+-- ! Error with newline char in a string 
+
 -- The parser from the NoFib benchmark suite
 -- TODO: getContents implementeren en gebruiken ipv readFile "big_big_test.hs"
 -- TODO: internal error fixen

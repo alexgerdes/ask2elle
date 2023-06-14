@@ -44,5 +44,7 @@ I suppose, its just a hypothesis, in `askelle` , we were actually reading from t
 
 
 --- 
-1. when checking `heliumTestCases/correct/Reexport2` using helium frontend, it seems to me that our current approach cannot handle module imports other than the standard prelude. As checking `import <moduleName>` requires the existence of `<moduleName>.lvm` which is the compiled redentition of `<moduleName>`.
-2. all modules in `failed` should pass the type checker, but they dont
+1. when checking `heliumTestCases/correct/Reexport2` using helium frontend, it seems to me that our current approach cannot handle module imports other than the standard prelude. As checking `import <moduleName>` requires the existence of `<moduleName>.lvm` which is the compiled redentition of `<moduleName>.hs`.
+2. The frontend seems cannot handle valid newline character in a string 
+3. Helium doesn't support number overloading, thus types for `s,a,b` in `FailAsIntended/parser/contexts` are too general
+4. How is `f (-.4.0) = 3` , quoted from `Success/parser/PatUnaryMinOk`, a valid piece of code? Maybe because is it restricted inside the front end?

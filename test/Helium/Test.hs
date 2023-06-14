@@ -1,13 +1,14 @@
 module Helium.Test (heliumTest) where
 
+import Data.ByteString qualified as BS
 import Data.Text qualified as T
-import Data.Text.IO qualified as T
-import Debug.Trace
+import Data.Text.Encoding qualified as T
 import Helium.Helium
 import Helium.Utility.Compile
 import System.Directory (listDirectory)
 import System.FilePath
 import Test.Hspec
+import Test.Hspec.Core.Runner
 
 -- | Test all the files in the heliumTestCases sub directories
 --   The test cases are taken from the Helium project
@@ -39,7 +40,7 @@ heliumTest = do
       baseNameAndContent <-
         mapM
           ( \dir -> do
-              content <- T.readFile dir
+              content <- T.decodeLatin1 <$> BS.readFile dir
               pure (takeBaseName dir, content)
           )
           dirs
@@ -60,6 +61,3 @@ heliumTest = do
 
     getSubdirectories :: FilePath -> IO [FilePath]
     getSubdirectories input = fmap (\subdir -> input </> subdir ++ "/") <$> listDirectory input
-
-f :: [[Char]]
-f = "hello" : map concat [[]]

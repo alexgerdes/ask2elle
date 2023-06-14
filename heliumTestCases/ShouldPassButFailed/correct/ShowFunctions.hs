@@ -1,3 +1,4 @@
+-- ! newline char in a string 
 module ShowFunctions where
 
 -- error

@@ -13,19 +13,6 @@ import Test.Hspec.Core.Runner
 -- | Test all the files in the heliumTestCases sub directories
 --   The test cases are taken from the Helium project
 
--- | The subdirectories to test
--- subdirectories :: [FilePath]
--- subdirectories =
---   fmap
---     ("./heliumTestCases/Success/" ++)
---     [ "correct/",
---       "classesQualified/",
---       "benchmarks/",
---       "kinderrors/",
---       "knowntofix/",
---       "runtimeerrors/"
---     ]
-
 -- | The main test function
 heliumTest :: IO ()
 heliumTest = do
@@ -36,7 +23,7 @@ heliumTest = do
   where
     typeChecking :: String -> FilePath -> IO ()
     typeChecking expectedOutput filepath = do
-      dirs <- fmap (filepath ++) <$> listDirectory filepath
+      dirs <- fmap (filepath ++) . filter (isExtensionOf ".hs") <$> listDirectory filepath
       baseNameAndContent <-
         mapM
           ( \dir -> do

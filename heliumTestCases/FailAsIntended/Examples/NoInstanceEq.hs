@@ -1,6 +1,7 @@
-data A = A Int
-       | B Char
+data A
+    = A Int
+    | B Char
 
-data D = E deriving Eq
+data D = E deriving (Eq)
 
 main = A 3 == B 'a'

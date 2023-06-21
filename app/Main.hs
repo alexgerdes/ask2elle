@@ -9,12 +9,10 @@ import Helium.Utility.PrettyPrinter
 
 main :: IO ()
 main = do
-  code <- T.decodeLatin1 <$> BS.readFile "./heliumTestCases/Success/parser/DerivingMany.hs"
-  result <- compileCode "DerivingMany" code askelleDefaultOptions {filterTypeSigs = False}
-  case result of
-    Left (errTyp, errText) -> do
-      print errTyp
-      T.putStrLn errText
-    Right a -> T.putStrLn $ ppModule a
-
-
+    code <- T.decodeLatin1 <$> BS.readFile "./heliumTestCases/Success/parser/DerivingMany.hs"
+    result <- compileCode "DerivingMany" code askelleDefaultOptions{filterTypeSigs = False}
+    case result of
+        Left (errTyp, errText) -> do
+            print errTyp
+            T.putStrLn errText
+        Right a -> T.putStrLn $ ppModule a

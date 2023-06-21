@@ -1,3 +1,3 @@
 module DeclPatBinding where
 
-(a,b) = True
+(a, b) = True

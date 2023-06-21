@@ -1,2 +1,2 @@
 test x = case x of
-            (a,b) -> (a True, a "hello", b)
+    (a, b) -> (a True, a "hello", b)

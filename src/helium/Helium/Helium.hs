@@ -14,9 +14,9 @@ type Module = T.Text
 
 compileFn :: Name -> Type -> CodeSnippet -> IO (Either (Helium.HeliumError, T.Text) Helium.Module)
 compileFn fnName fnType fnImplementation = do
-  -- isDefined <- runExceptT $ Helium.typeOf fnName fnImplementation'
-  compilationResult <- Helium.compile False (typeDecl `T.append` fnImplementation') Helium.askelleDefaultOptions
-  pure $ fmap Helium.getModule compilationResult
+    -- isDefined <- runExceptT $ Helium.typeOf fnName fnImplementation'
+    compilationResult <- Helium.compile False (typeDecl `T.append` fnImplementation') Helium.askelleDefaultOptions
+    pure $ fmap Helium.getModule compilationResult
   where
     fnImplementation' :: T.Text
     fnImplementation' = escape fnImplementation
@@ -25,8 +25,8 @@ compileFn fnName fnType fnImplementation = do
 
 compileCode :: Module -> CodeSnippet -> Helium.AskelleOptions -> IO (Either (Helium.HeliumError, T.Text) Helium.Module)
 compileCode moduleName code options = do
-  compilationResult <- Helium.compile False (escape code) options {Helium.moduleName = Just moduleName}
-  pure $ fmap Helium.getModule compilationResult
+    compilationResult <- Helium.compile False (escape code) options{Helium.moduleName = Just moduleName}
+    pure $ fmap Helium.getModule compilationResult
 
 escape :: T.Text -> T.Text
 escape text = foldr (\(a, b) txt' -> T.replace a b txt') text rs

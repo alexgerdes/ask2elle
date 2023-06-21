@@ -1,4 +1,3 @@
-  
 {-
 
 Nested
@@ -9,7 +8,7 @@ comments
 
 -}
 
-are almost never supported by editors 
+are almost never supported by editors
 
 x = 3
 

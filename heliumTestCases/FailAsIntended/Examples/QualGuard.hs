@@ -1,3 +1,3 @@
 module QualGuard where
 
-f = [ 3 | 5 ]
+f = [3 | 5]

@@ -13,5 +13,5 @@ requires_nix_shell:
 # Run fourmolu formatter
 .PHONY: format
 format: # requires_nix_shell
-	fourmolu --mode inplace --check-idempotence $(shell fd -ehs)
+	fourmolu --mode inplace --check-idempotence $(shell fd --exclude heliumTestCases -ehs)
 	cabal-fmt -i $(shell fd -ecabal)

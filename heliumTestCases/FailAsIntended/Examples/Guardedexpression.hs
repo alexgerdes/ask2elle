@@ -1,4 +1,5 @@
 module Guardedexpression where
 
-f x | True  = 42
+f x
+    | True = 42
     | False = "aap"

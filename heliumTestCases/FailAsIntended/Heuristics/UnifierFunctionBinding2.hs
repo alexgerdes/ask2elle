@@ -1,2 +1,2 @@
-test []     = 0
-test (x:xs) = "hello" 
+test [] = 0
+test (x : xs) = "hello"

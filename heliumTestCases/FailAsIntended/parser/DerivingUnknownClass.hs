@@ -1,3 +1,4 @@
-data A = A Int
-       | B Float
-   deriving (Koe)
+data A
+    = A Int
+    | B Float
+    deriving (Koe)

@@ -1,3 +1,3 @@
 test = case True of
-          0 -> "hello"
-          _ -> "world"
+    0 -> "hello"
+    _ -> "world"

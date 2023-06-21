@@ -1,9 +1,9 @@
 module BigTypes where
 
-f :: ((Int,Int,Int) -> (Int,Int,Int)) -> (Int,Int,Int) -> (Int,Int,Int)
+f :: ((Int, Int, Int) -> (Int, Int, Int)) -> (Int, Int, Int) -> (Int, Int, Int)
 f = undefined
 
-g :: [(Bool,Bool,Bool)] -> ([(Bool,Bool,Bool)],[(Bool,Bool,Bool)],[(Bool,Bool,Bool)]) -> Bool
+g :: [(Bool, Bool, Bool)] -> ([(Bool, Bool, Bool)], [(Bool, Bool, Bool)], [(Bool, Bool, Bool)]) -> Bool
 g = undefined
 
-test = [ f , g ]
+test = [f, g]

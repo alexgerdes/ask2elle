@@ -1,2 +1,2 @@
 test True = "hello"
-test 3    = "world"
+test 3 = "world"

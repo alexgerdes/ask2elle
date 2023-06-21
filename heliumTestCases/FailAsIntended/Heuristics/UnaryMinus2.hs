@@ -1,1 +1,1 @@
-test = sin -.0.5
+test = sin -. 0.5

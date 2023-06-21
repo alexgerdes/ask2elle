@@ -1,3 +1,3 @@
 module ExprEnumFrom where
 
-f = [ "aap" .. ]
+f = ["aap" ..]

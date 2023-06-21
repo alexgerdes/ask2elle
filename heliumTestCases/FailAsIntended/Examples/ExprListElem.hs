@@ -1,3 +1,3 @@
 module ExprListElem where
 
-f = [ "neushoorn" , 47 ]
+f = ["neushoorn", 47]

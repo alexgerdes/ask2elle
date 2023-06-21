@@ -1,2 +1,1 @@
-main = 3 ' Cons'  []
-
+main = 3 'Cons' []

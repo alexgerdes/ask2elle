@@ -1,3 +1,3 @@
 module ExprNegateExpr where
 
-f = - "schaap"
+f = -"schaap"

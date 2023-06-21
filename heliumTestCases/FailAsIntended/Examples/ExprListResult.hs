@@ -1,4 +1,4 @@
 module ExprListResult where
 
 f :: Int
-f = [ 5 ]
+f = [5]

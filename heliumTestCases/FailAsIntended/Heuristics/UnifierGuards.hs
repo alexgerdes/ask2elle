@@ -1,3 +1,3 @@
-test 
-  | False = "hello" 
-  | True  = 13
+test
+    | False = "hello"
+    | True = 13

@@ -98,6 +98,7 @@ test-suite ask2elle-test
   build-depends:
     , base          ^>=4.16.4.0
     , bytestring
+    , conduit
     , directory
     , filepath
     , helium-stage

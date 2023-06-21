@@ -10,7 +10,7 @@ data Fix a = In (a (Fix a))
 
 data Tree a = Node (Tree a) (Tree a) | Leaf a
 
-type Parser symbol result  =  [symbol] -> [(result,[symbol])]
+type Parser symbol result = [symbol] -> [(result, [symbol])]
 
 data RoseTree a = RoseTree a [RoseTree a]
 

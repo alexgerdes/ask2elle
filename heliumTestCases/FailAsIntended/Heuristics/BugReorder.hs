@@ -6,4 +6,4 @@ f = undefined
 g :: A -> [[String]]
 g (A ps) = [f (A ps)]
 g (A ps) = f (A ps)
-g _      = f undefined
+g _ = f undefined

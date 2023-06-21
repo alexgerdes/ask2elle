@@ -1,1 +1,1 @@
-import Maybe(x)
+import Maybe (x)

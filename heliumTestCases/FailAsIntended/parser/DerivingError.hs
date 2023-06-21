@@ -1,4 +1,4 @@
-data A = A Int
-       | B Float
-   deriving (x)
-   
+data A
+    = A Int
+    | B Float
+    deriving (x)

@@ -1,4 +1,4 @@
 data A = A
-data B = B deriving Show
+data B = B deriving (Show)
 
 main = show A

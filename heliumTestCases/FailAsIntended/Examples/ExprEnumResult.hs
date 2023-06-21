@@ -1,4 +1,4 @@
 module ExprEnumResult where
 
 f :: Bool
-f = [0..9]
+f = [0 .. 9]

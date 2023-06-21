@@ -1,4 +1,4 @@
 module PatTuple where
 
 f :: Bool -> Int
-f (a,b) = 13
+f (a, b) = 13

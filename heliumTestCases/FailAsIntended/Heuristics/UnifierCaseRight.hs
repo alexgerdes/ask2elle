@@ -1,3 +1,3 @@
 test b = case b of
-            True  -> 3
-            False -> "hello"
+    True -> 3
+    False -> "hello"

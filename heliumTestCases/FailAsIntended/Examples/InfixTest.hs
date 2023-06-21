@@ -3,7 +3,7 @@ f = (+)
 
 data C = C Int Int
 
--- test the pretty printing of the infix's in 
+-- test the pretty printing of the infix's in
 -- the three type errors!
 
 test = True `f` 3

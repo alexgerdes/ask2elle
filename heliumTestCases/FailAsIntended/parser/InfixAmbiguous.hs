@@ -1,6 +1,6 @@
 module InfixAmbiguous where
 
-infix +++
+infix 9 +++
 
 main = 3 +++ 4 +++ 4
 

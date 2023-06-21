@@ -1,6 +1,6 @@
 module AppSwap2 where
 
-type IntTable a = [(Int,a)]
+type IntTable a = [(Int, a)]
 
 zeroValue :: String
 zeroValue = dictionary ? 0
@@ -9,4 +9,4 @@ zeroValue = dictionary ? 0
 (?) = undefined
 
 dictionary :: IntTable String
-dictionary = [ (0,"nul"), (1,"een"), (2,"twee") ]
+dictionary = [(0, "nul"), (1, "een"), (2, "twee")]

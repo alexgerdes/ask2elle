@@ -1,3 +1,3 @@
 module JavaStringConcat where
 
-test = "abc" + "def" 
+test = "abc" + "def"

@@ -4,18 +4,13 @@ import Conduit
 import Data.ByteString qualified as BS
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
-import System.Directory (listDirectory)
+
 import System.FilePath
 import Test.Hspec
-import Test.Hspec.Core.Runner
+
 
 import Helium.Helium
 import Helium.Utility.Compile
-
--- | Test all the files in the heliumTestCases sub directories
---   The test cases are taken from the Helium project
--- test :: IO ()
--- test =
 
 -- | The main test function
 heliumTest :: IO ()

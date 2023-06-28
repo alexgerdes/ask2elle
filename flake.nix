@@ -1,6 +1,6 @@
 {
   description = "Ask2elle-Development-Environment";
-  inputs = { nixpkgs-master.url = "github:NixOS/nixpkgs/master"; };
+  inputs = { nixpkgs-master.url = "github:NixOS/nixpkgs/nixos-unstable"; };
 
   outputs = inputs@{ self, nixpkgs-master, ... }:
     let
@@ -12,14 +12,13 @@
       nixpkgsFor = system: nixpkgs-master.legacyPackages.${system};
 
       mkDevEnv = system:
-        let
-          pkgs = nixpkgsFor system;
-          hls = pkgs.haskell-language-server.override {
-            supportedGhcVersions = [ "92" ];
-          };
+        let pkgs = nixpkgsFor system;
         in pkgs.stdenv.mkDerivation {
           name = "Standard-Dev-Environment-with-Utils";
-          buildInputs = [ pkgs.ghc hls ] ++ (with pkgs; [
+          buildInputs = [
+            pkgs.haskell.compiler.ghc925
+            pkgs.haskell.packages.ghc925.haskell-language-server
+          ] ++ (with pkgs; [
             bashInteractive
             cabal-install
             fd

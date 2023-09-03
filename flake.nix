@@ -16,8 +16,8 @@
         in pkgs.stdenv.mkDerivation {
           name = "Standard-Dev-Environment-with-Utils";
           buildInputs = [
-            pkgs.haskell.compiler.ghc925
-            pkgs.haskell.packages.ghc925.haskell-language-server
+            pkgs.haskell.compiler.ghc928
+            pkgs.haskell.packages.ghc928.haskell-language-server
           ] ++ (with pkgs; [
             bashInteractive
             cabal-install

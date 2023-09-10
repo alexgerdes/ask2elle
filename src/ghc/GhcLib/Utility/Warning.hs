@@ -1,4 +1,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Redundant lambda" #-}
 
 module GhcLib.Utility.Warning (Warning, writeWarnings) where
 
@@ -36,29 +39,85 @@ instance Ord Warning where
 
 instance Ord GHC.Severity where
     (>) :: GHC.Severity -> GHC.Severity -> Bool
-    GHC.SevFatal > s = True
-    GHC.SevError > s = case s of
-        GHC.SevFatal -> False
-        _ -> True
-    GHC.SevWarning > s = case s of
-        GHC.SevFatal -> False
-        GHC.SevError -> False
-        _ -> True
+    GHC.SevFatal > _ = True
+    GHC.SevError > GHC.SevError = False
+    GHC.SevError > _ = True
+    GHC.SevWarning > GHC.SevFatal = False
+    GHC.SevWarning > GHC.SevError = False
+    GHC.SevWarning > _ = True
+    GHC.SevInteractive > GHC.SevFatal = False
+    GHC.SevInteractive > GHC.SevError = False
+    GHC.SevInteractive > GHC.SevWarning = False
+    GHC.SevInteractive > _ = True
+    GHC.SevOutput > GHC.SevFatal = False
+    GHC.SevOutput > GHC.SevError = False
+    GHC.SevOutput > GHC.SevWarning = False
+    GHC.SevOutput > GHC.SevInteractive = False
+    GHC.SevOutput > _ = True
+    GHC.SevDump > GHC.SevFatal = False
+    GHC.SevDump > GHC.SevError = False
+    GHC.SevDump > GHC.SevWarning = False
+    GHC.SevDump > GHC.SevInteractive = False
+    GHC.SevDump > GHC.SevOutput = False
+    GHC.SevDump > _ = True
+    GHC.SevInfo > GHC.SevFatal = False
+    GHC.SevInfo > GHC.SevError = False
+    GHC.SevInfo > GHC.SevWarning = False
+    GHC.SevInfo > GHC.SevInteractive = False
+    GHC.SevInfo > GHC.SevOutput = False
+    GHC.SevInfo > GHC.SevDump = False
+    GHC.SevInfo > _ = True
     (<=) :: GHC.Severity -> GHC.Severity -> Bool
-    _ <= GHC.SevFatal = True
+    GHC.SevFatal <= GHC.SevFatal = True
+    GHC.SevFatal <= _ = False
+    GHC.SevError <= GHC.SevFatal = True
+    GHC.SevError <= GHC.SevError = True
+    GHC.SevError <= _ = False
+    GHC.SevWarning <= GHC.SevFatal = True
     GHC.SevWarning <= GHC.SevError = True
+    GHC.SevWarning <= GHC.SevWarning = True
+    GHC.SevWarning <= _ = False
+    GHC.SevInteractive <= GHC.SevFatal = True
+    GHC.SevInteractive <= GHC.SevError = True
+    GHC.SevInteractive <= GHC.SevWarning = True
+    GHC.SevInteractive <= GHC.SevInteractive = True
+    GHC.SevInteractive <= _ = False
+    GHC.SevOutput <= GHC.SevFatal = True
+    GHC.SevOutput <= GHC.SevError = True
+    GHC.SevOutput <= GHC.SevWarning = True
+    GHC.SevOutput <= GHC.SevInteractive = True
+    GHC.SevOutput <= GHC.SevOutput = True
+    GHC.SevOutput <= _ = False
+    GHC.SevDump <= GHC.SevFatal = True
+    GHC.SevDump <= GHC.SevError = True
+    GHC.SevDump <= GHC.SevWarning = True
+    GHC.SevDump <= GHC.SevInteractive = True
+    GHC.SevDump <= GHC.SevOutput = True
+    GHC.SevDump <= GHC.SevDump = True
+    GHC.SevDump <= _ = False
+    GHC.SevInfo <= _ = True
 
 uniqWarns :: Warning -> Warning -> Bool
 
 -- | compare warnings based on getWarningReason and source location
 uniqWarns w w' = getWarningReason w == getWarningReason w' && getWarningSpan w == getWarningSpan w'
 
-writeWarnings :: IORef [Warning] -> GHC.LogAction -> GHC.LogAction
+writeWarnings
+    :: IORef [Warning]
+    -> ( GHC.DynFlags
+         -> GHC.WarnReason
+         -> GHC.Severity
+         -> GHC.SrcSpan
+         -> GHC.SDoc
+         -> IO ()
+       )
+    -> GHC.LogAction
 
 -- | write warnings to IORef
-writeWarnings ref action dflags getWarningReason getWarningSeverity span getWarningDoc = do
-    modifyIORef ref (GhcWarn getWarningReason getWarningSeverity span getWarningDoc :)
-    noAction dflags getWarningReason getWarningSeverity span getWarningDoc
+writeWarnings ref _ =
+    \dflags getWarningReason getWarningSeverity warningSpan getWarningDoc -> do
+        modifyIORef ref (\xs -> GhcWarn getWarningReason getWarningSeverity warningSpan getWarningDoc : xs)
+        noAction dflags getWarningReason getWarningSeverity warningSpan getWarningDoc
 
 -- replace noAction with defaultLogAction to output errors and warnings to stdout/stderr
 

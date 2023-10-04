@@ -56,14 +56,14 @@ library ghc-stage
   import:           common-warnings
   import:           common-extensions
   other-modules:
-    GhcLib.Simplifier.Simplifier
     GhcLib.Utility.Flags
     GhcLib.Utility.Warning
 
+  exposed-modules:  GhcLib.Simplifier.Simplifier
   build-depends:
     , base         ^>=4.16.4.0
     , containers
-    , exceptions ^>=0.10.4
+    , exceptions   ^>=0.10.4
     , filepath
     , ghc          >=9.2.5     && <9.3
     , ghc-boot-th
@@ -103,6 +103,7 @@ executable ask2elle
   build-depends:
     , base          ^>=4.16.4.0
     , bytestring
+    , ghc-stage
     , helium-stage
     , text          ^>=2.0
 

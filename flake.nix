@@ -16,6 +16,7 @@
         in pkgs.stdenv.mkDerivation {
           name = "Standard-Dev-Environment-with-Utils";
           buildInputs = [
+
             pkgs.haskell.compiler.ghc928
             pkgs.haskell.packages.ghc928.haskell-language-server
           ] ++ (with pkgs; [
@@ -27,6 +28,7 @@
             nixfmt
             zlib
             sqlite
+            gcc
           ]);
         };
 
@@ -41,6 +43,7 @@
               buildInputs = stdDevEnv.buildInputs
                 ++ (with haskell-pkgs; [ cabal-fmt fourmolu ]);
               shellHook = ''
+                export LD_LIBRARY_PATH=${pkgs.gcc.cc.lib}/lib:$LD_LIBRARY_PATH
                 export PATH=~/.cabal/bin:$PATH;
               '';
 

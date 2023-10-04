@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module GhcLib.Simplifier.Simplifier (test) where
 
 import Control.Monad.Catch
@@ -12,12 +13,16 @@ import GHC.Driver.Session qualified as GHC
 import GHC.IO (unsafePerformIO)
 import GHC.LanguageExtensions.Type qualified as GHC
 import GHC.Plugins qualified as GHC
+import GHC.Utils.Logger qualified as GHCLogger
 import System.FilePath (takeBaseName)
 import System.Process (readProcess)
 
 import GHC.Exception (Exception)
 import GhcLib.Utility.Flags
 import GhcLib.Utility.Warning
+import Control.Monad.Except (ExceptT)
+import Control.Monad (unless)
+import Control.Monad (when)
 
 data SimplifyingError = FailedUnloading | FailedLoading
     deriving stock (Show)
@@ -28,6 +33,12 @@ instance Show GHC.SuccessFlag where
     show :: GHC.SuccessFlag -> String
     show GHC.Succeeded = "Succeeded"
     show GHC.Failed = "Failed"
+
+
+
+newtype Simplify a = MkSimplify {runSimplify :: GHC.GhcT (Either SimplifyingError)  a}
+    deriving newtype (Functor, Applicative, Monad)
+
 
 setExtensionFlag' :: GHC.Extension -> GHC.DynFlags -> GHC.DynFlags
 
@@ -59,7 +70,7 @@ unSetExtensionFlag' f dflags = GHC.xopt_unset dflags f
 
 setFlags :: Bool -> [GHC.GeneralFlag] -> GHC.Ghc ()
 
--- | Set dynamic flags
+-- | Set extra dynamic flags(flags from the command line) along with default always-on flags
 setFlags b flags = do
     currDynFlags <- GHC.getSessionDynFlags
     let gflags = if b then GHCEnumSet.toList (GHC.generalFlags currDynFlags) ++ flags else flags
@@ -84,7 +95,8 @@ loadWithPlugins targetFile plugins = do
     -- first unload all the files (like GHCi :load does)
     GHC.setTargets []
     unloadingFlag <- GHC.load GHC.LoadAllTargets
-    guardM (GHC.succeeded unloadingFlag) FailedUnloading
+
+    -- guardM (GHC.succeeded unloadingFlag) FailedUnloading
     -- actually start loading file
     GHC.setTargets [targetFile]
     dflags <- GHC.getSessionDynFlags
@@ -99,7 +111,13 @@ loadWithoutPlugins targetFile = do
     -- first unload all the files (like GHCi :load does)
     GHC.setTargets []
     unloadingFlag <- GHC.load GHC.LoadAllTargets
-    guardM (GHC.succeeded unloadingFlag) FailedUnloading
+    traceM $ show unloadingFlag
+    when (GHC.succeeded unloadingFlag) (do
+        dynflags <- GHC.getDynFlags
+        liftIO $ GHCLogger.defaultLogAction dynflags GHC.NoReason GHC.SevInfo GHC.noSrcSpan "Hello World"
+        throwM FailedLoading)
+
+    -- guardM (GHC.succeeded unloadingFlag) FailedUnloading
 
     -- dflags <- GHC.getSessionDynFlags
     --  Why do we need to set this option to Nothing?\
@@ -107,16 +125,18 @@ loadWithoutPlugins targetFile = do
     -- Nothing
     -- GHC.setSessionDynFlags dflags{GHC.outputFile_ = Nothing}
     GHC.setTargets [targetFile]
-    -- ! Why the following load always fails?
+    -- ! Why the following load always fails?export LD_LIBRARY_PATH=${pkgs.gcc.cc.lib}/lib:$LD_LIBRARY_PATH
     loadingFlag <- GHC.load GHC.LoadAllTargets
     traceM $ show loadingFlag
-    guardM (GHC.succeeded loadingFlag) FailedLoading
+    -- guardM (GHC.succeeded loadingFlag) FailedLoading
 
     pure ()
+
 
 initEnv :: Bool -> [GHC.GeneralFlag] -> FilePath -> GHC.Ghc (IORef [Warning])
 initEnv keepDefaultFlags flags hsFile = do
     setFlags keepDefaultFlags flags
+    -- logger <- GHC.getLogger
     ref <- liftIO (newIORef [])
     -- in case of logging, also write it to the IORef
     GHC.pushLogHookM (writeWarnings ref)
@@ -145,18 +165,16 @@ libDirPath :: FilePath
 libDirPath = init $ unsafePerformIO (readProcess "ghc" ["--print-libdir"] "")
 
 test :: IO ()
-test =
+test = do
     let target = "./heliumTestCases/Success/correct/Abs.hs"
-    in  GHC.defaultErrorHandler
-            GHC.defaultFatalMessager
-            GHC.defaultFlushOut
-            $ GHC.runGhc (Just libDirPath)
-            $ do
-                _ <- initEnv True [] target
-                modSum <- GHC.getModSummary $ GHC.mkModuleName (takeBaseName target)
-                traceM $ show $ GHC.ms_hs_date modSum
-                pure ()
+    logging <- GHC.defaultErrorHandler
+        GHC.defaultFatalMessager
+        GHC.defaultFlushOut
+        $ GHC.runGhc (Just libDirPath)
+        $ do
+            ref <- initEnv True [] target
+            modSum <- GHC.getModSummary $ GHC.mkModuleName (takeBaseName target)
+            traceM $ show $ GHC.ms_hs_date modSum
+            pure ref
+    pure ()
 
-guardM :: (GHC.GhcMonad m, Exception e) => Bool -> e -> m ()
-guardM False e = throwM e
-guardM _ _ = pure ()

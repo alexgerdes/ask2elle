@@ -6,13 +6,18 @@ import Data.Text.IO qualified as T
 import Helium.Helium
 import Helium.Utility.Compile (AskelleOptions (..), askelleDefaultOptions)
 import Helium.Utility.PrettyPrinter
+import GhcLib.Simplifier.Simplifier (test)
+
+-- main :: IO ()
+-- main = do
+--     code <- T.decodeLatin1 <$> BS.readFile "./heliumTestCases/Success/parser/DerivingMany.hs"
+--     result <- compileCode "DerivingMany" code askelleDefaultOptions{filterTypeSigs = False}
+--     case result of
+--         Left (errTyp, errText) -> do
+--             print errTyp
+--             T.putStrLn errText
+--         Right a -> T.putStrLn $ ppModule a
+
 
 main :: IO ()
-main = do
-    code <- T.decodeLatin1 <$> BS.readFile "./heliumTestCases/Success/parser/DerivingMany.hs"
-    result <- compileCode "DerivingMany" code askelleDefaultOptions{filterTypeSigs = False}
-    case result of
-        Left (errTyp, errText) -> do
-            print errTyp
-            T.putStrLn errText
-        Right a -> T.putStrLn $ ppModule a
+main = test 

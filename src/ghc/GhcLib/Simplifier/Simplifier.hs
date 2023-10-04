@@ -1,9 +1,8 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
+
 module GhcLib.Simplifier.Simplifier (test) where
 
 import Control.Monad.Catch
-import Control.Monad.IO.Class (MonadIO (liftIO))
-import Data.Foldable (foldl')
 import Data.IORef (IORef, newIORef)
 import Debug.Trace
 import GHC qualified
@@ -17,28 +16,21 @@ import GHC.Utils.Logger qualified as GHCLogger
 import System.FilePath (takeBaseName)
 import System.Process (readProcess)
 
-import GHC.Exception (Exception)
+import Control.Monad.Except (ExceptT, runExceptT, throwError)
+import Control.Monad.Reader
+
 import GhcLib.Utility.Flags
 import GhcLib.Utility.Warning
-import Control.Monad.Except (ExceptT)
-import Control.Monad (unless)
-import Control.Monad (when)
 
 data SimplifyingError = FailedUnloading | FailedLoading
     deriving stock (Show)
 
 instance Exception SimplifyingError
 
-instance Show GHC.SuccessFlag where
-    show :: GHC.SuccessFlag -> String
-    show GHC.Succeeded = "Succeeded"
-    show GHC.Failed = "Failed"
-
-
-
-newtype Simplify a = MkSimplify {runSimplify :: GHC.GhcT (Either SimplifyingError)  a}
-    deriving newtype (Functor, Applicative, Monad)
-
+newtype Simplify a = MkSimplify {runSimplify :: GHC.GhcT (ExceptT SimplifyingError IO) a}
+    deriving newtype (Functor, Applicative, Monad, MonadIO, GHC.HasDynFlags, GHCLogger.HasLogger)
+    deriving (MonadThrow, MonadCatch, MonadMask) via (ReaderT GHC.Session (ExceptT SimplifyingError IO))
+    deriving newtype (GHC.GhcMonad)
 
 setExtensionFlag' :: GHC.Extension -> GHC.DynFlags -> GHC.DynFlags
 
@@ -68,7 +60,7 @@ unSetExtensionFlag' :: GHC.Extension -> GHC.DynFlags -> GHC.DynFlags
 --      (except for -fno-glasgow-exts, which is treated specially)
 unSetExtensionFlag' f dflags = GHC.xopt_unset dflags f
 
-setFlags :: Bool -> [GHC.GeneralFlag] -> GHC.Ghc ()
+setFlags :: Bool -> [GHC.GeneralFlag] -> Simplify ()
 
 -- | Set extra dynamic flags(flags from the command line) along with default always-on flags
 setFlags b flags = do
@@ -88,7 +80,7 @@ setFlags b flags = do
 
     GHC.setSessionDynFlags enableGeneralFlag
 
-loadWithPlugins :: GHC.GhcMonad m => GHC.Target -> [GHC.StaticPlugin] -> m GHC.SuccessFlag
+loadWithPlugins :: GHC.Target -> [GHC.StaticPlugin] -> Simplify GHC.SuccessFlag
 
 -- |  ghc loads the target file with a list of plugins
 loadWithPlugins targetFile plugins = do
@@ -106,34 +98,41 @@ loadWithPlugins targetFile plugins = do
     GHC.load GHC.LoadAllTargets
 
 -- | ghc loads the target file
-loadWithoutPlugins :: GHC.GhcMonad m => GHC.Target -> m ()
+loadWithoutPlugins :: GHC.Target -> Simplify ()
 loadWithoutPlugins targetFile = do
     -- first unload all the files (like GHCi :load does)
     GHC.setTargets []
     unloadingFlag <- GHC.load GHC.LoadAllTargets
-    traceM $ show unloadingFlag
-    when (GHC.succeeded unloadingFlag) (do
-        dynflags <- GHC.getDynFlags
-        liftIO $ GHCLogger.defaultLogAction dynflags GHC.NoReason GHC.SevInfo GHC.noSrcSpan "Hello World"
-        throwM FailedLoading)
-
-    -- guardM (GHC.succeeded unloadingFlag) FailedUnloading
-
-    -- dflags <- GHC.getSessionDynFlags
+    when
+        (GHC.failed unloadingFlag)
+        ( do
+            dynflags <- GHC.getDynFlags
+            liftIO $ GHCLogger.defaultLogAction dynflags GHC.NoReason GHC.SevInfo GHC.noSrcSpan "Error : Clearing context failed"
+            MkSimplify $ GHC.liftGhcT $ throwError FailedUnloading
+        )
     --  Why do we need to set this option to Nothing?\
     -- traceM $ "Trace point : " ++ (show $ GHC.outputFile_ dflags)
     -- Nothing
     -- GHC.setSessionDynFlags dflags{GHC.outputFile_ = Nothing}
     GHC.setTargets [targetFile]
-    -- ! Why the following load always fails?export LD_LIBRARY_PATH=${pkgs.gcc.cc.lib}/lib:$LD_LIBRARY_PATH
-    loadingFlag <- GHC.load GHC.LoadAllTargets
-    traceM $ show loadingFlag
-    -- guardM (GHC.succeeded loadingFlag) FailedLoading
+    -- ! This operation failed if the target is not well-formed haskell file
+    let moduleName = GHC.mkModuleName (takeBaseName "./heliumTestCases/Success/correct/Abs.hs")
+    loadingFlag <- GHC.load $ GHC.LoadAllTargets
+    modSum <- GHC.getModSummary moduleName
 
-    pure ()
+    traceM $ show $ GHC.ms_location modSum
+    traceM $ show $ GHC.ms_hsc_src modSum
+    traceM $ show $ GHC.succeeded loadingFlag
 
+    when
+        (GHC.failed loadingFlag)
+        ( do
+            dynflags <- GHC.getDynFlags
+            liftIO $ GHCLogger.defaultLogAction dynflags GHC.NoReason GHC.SevInfo GHC.noSrcSpan "Error : Loading failed"
+            MkSimplify $ GHC.liftGhcT $ throwError FailedLoading
+        )
 
-initEnv :: Bool -> [GHC.GeneralFlag] -> FilePath -> GHC.Ghc (IORef [Warning])
+initEnv :: Bool -> [GHC.GeneralFlag] -> FilePath -> Simplify (IORef [Warning])
 initEnv keepDefaultFlags flags hsFile = do
     setFlags keepDefaultFlags flags
     -- logger <- GHC.getLogger
@@ -145,7 +144,7 @@ initEnv keepDefaultFlags flags hsFile = do
     loadWithoutPlugins target
     return ref
 
-toDesugar' :: Bool -> [GHC.GeneralFlag] -> FilePath -> GHC.Ghc (GHC.ModGuts, GHC.ParsedSource, IORef [Warning])
+toDesugar' :: Bool -> [GHC.GeneralFlag] -> FilePath -> Simplify (GHC.ModGuts, GHC.ParsedSource, IORef [Warning])
 
 -- | Compile a file to the desugar pass + simple optimiser and return Modguts and warnings
 toDesugar' setdefaultFlags flags targetFilePath = do
@@ -164,13 +163,14 @@ toDesugar' setdefaultFlags flags targetFilePath = do
 libDirPath :: FilePath
 libDirPath = init $ unsafePerformIO (readProcess "ghc" ["--print-libdir"] "")
 
-test :: IO ()
-test = do
+test' :: ExceptT SimplifyingError IO ()
+test' = do
     let target = "./heliumTestCases/Success/correct/Abs.hs"
     logging <- GHC.defaultErrorHandler
         GHC.defaultFatalMessager
         GHC.defaultFlushOut
-        $ GHC.runGhc (Just libDirPath)
+        $ GHC.runGhcT (Just libDirPath)
+        $ runSimplify
         $ do
             ref <- initEnv True [] target
             modSum <- GHC.getModSummary $ GHC.mkModuleName (takeBaseName target)
@@ -178,3 +178,9 @@ test = do
             pure ref
     pure ()
 
+test :: IO ()
+test = do
+    result <- runExceptT test'
+    case result of
+        Left e -> print e
+        Right _ -> pure ()

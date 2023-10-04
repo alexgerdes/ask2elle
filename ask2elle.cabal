@@ -28,6 +28,8 @@ common common-extensions
     BangPatterns
     DataKinds
     DerivingStrategies
+    DerivingVia
+    GeneralizedNewtypeDeriving
     ExplicitForAll
     FlexibleContexts
     FlexibleInstances
@@ -38,7 +40,6 @@ common common-extensions
     MultiParamTypeClasses
     NamedFieldPuns
     OverloadedStrings
-    RankNTypes
     ScopedTypeVariables
     StandaloneDeriving
     StandaloneKindSignatures

@@ -15,7 +15,7 @@ import Helium.Utility.Compile
 -- | The main test function
 heliumTest :: IO ()
 heliumTest = do
-    runConduitRes $ sourceDirectoryDeep False "./heliumTestCases/Success/" .| filterC (isExtensionOf ".hs") .| mapM_C (lift . typeChecking "Ok")
+    runConduitRes $ sourceDirectoryDeep False "./heliumTestCases/Pass/" .| filterC (isExtensionOf ".hs") .| mapM_C (lift . typeChecking "Ok")
     runConduitRes $ sourceDirectoryDeep False "./heliumTestCases/FailAsIntended/" .| filterC (isExtensionOf ".hs") .| mapM_C (lift . typeChecking "Error")
   where
     typeChecking :: String -> FilePath -> IO ()

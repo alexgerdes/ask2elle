@@ -29,11 +29,11 @@ common common-extensions
     DataKinds
     DerivingStrategies
     DerivingVia
-    GeneralizedNewtypeDeriving
     ExplicitForAll
     FlexibleContexts
     FlexibleInstances
     GADTs
+    GeneralizedNewtypeDeriving
     ImportQualifiedPost
     InstanceSigs
     LambdaCase
@@ -57,7 +57,9 @@ library ghc-stage
   import:           common-warnings
   import:           common-extensions
   other-modules:
+    GhcLib.Utility.Bag
     GhcLib.Utility.Flags
+    GhcLib.Utility.Utility
     GhcLib.Utility.Warning
 
   exposed-modules:  GhcLib.Simplifier.Simplifier

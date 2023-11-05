@@ -115,7 +115,7 @@ loadWithoutPlugins targetFile = do
     -- loadingFlag <- GHC.load GHC.LoadAllTargets
     -- guardS (GHC.succeeded loadingFlag) (fromString $ "Error : Failed to load target : " ++ targetFP) FailedLoading
     hsFile <- liftS $ asks getSimplifyTargetName
-    -- ? What does load really do? The description indicate that it parses and typechecks the target file
+    -- ? What does load really do? The description indicates that it parses and typechecks the target file
     -- ? Do we really need to parse and typecheck it again later? or do we need to call `load` , 
     -- ?                  this complex and all-in-one function at this step? Can we do some fine-grained operations?
     -- ?                       some part of examination of load is put inside docs folder
@@ -199,3 +199,4 @@ guardS False sdoc errorType = do
 
 liftS :: ReaderT SimplifyOption (ExceptT SimplifyingError IO) a -> Simplify a
 liftS f = MkSimplify $ GHC.liftGhcT f
+

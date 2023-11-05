@@ -5,20 +5,12 @@ it first calls `depanalE` with empty excluded modules, represented by `[]` and o
 ```haskell
 hsc_env <- getSession
 ```  
-The session was setted up when we were calling `runGhcT` function, check `newHscEnv` for specific values.
+The session was setted up when we were calling `runGhcT` function, check `newHscEnv` for concrete values.
 
 So far, we have already performed `setFlags` which modifies the dynamic flag field, `hs_dflags`, and `setTarget` which modifies `hsc_targets` field.
 
 ## (errs, mod_graph) <- depanalPartial excluded_mods allow_dup_roots
 The command is in effect `depanalPartial [] false`
-
-
-
-
-
-
-
-
 
 
 # depanalPartial 
@@ -68,3 +60,222 @@ flushFinderCaches hsc_env =
 `home_unit` holds `panic : hsc_unit_env not initialized`, later `isHomeInstalledModule` tries to check `mod` whether inside `home_unit` or not by comparing `home_unit`'s number with mod's. Why it doesn't lead to panic, because of laziness!. `filterInstalledModuleEnv` just returns empty map if th e map is empty.
 
 So, in this case, `flushFinderCaches` does literally nothing.
+
+
+```haskell
+mod_summariesE <- liftIO $ downsweep
+  hsc_env (mgExtendedModSummaries old_graph)
+  excluded_mods allow_dup_roots 
+```
+
+As shown below, `mg_mss` simply extracts the list of `ModuleGraphNode` out of the `old_graph`, and `old_graph` is empty as illustrated earlier. Hence, `downsweep` call is in effect, `downsweep hsc_env [] [] false`
+```haskell
+data ModuleGraph = ModuleGraph {
+  mg_mss :: [ModuleGraphNode]
+  ...
+ }
+```
+
+`downsweep` is this complex 100 lines of code performs dependency analysis, which really need a closer look.
+
+# downsweep
+```haskell
+downsweep :: HscEnv -> [ExtendedModSummary] -> [ModuleName] -> Bool -> IO [Either ErrorMessages ExtendedModSummary]
+downsweep hsc_env old_summaries excl_mods allow_dup_roots = ...
+```
+
+It first performs `getRootSummary` on all targets reside in `hsc_target` field in `hsc_env`. 
+Since we know the fact value in the `hsc_target` is constructed via `TargetFile`(How do know this fact? The source code of `guessTarget` we used earlier, when given a valid filepath to a haskell file, it generates a `TargetFile` data), so we only need to look at the `TargetFile` branch.
+
+```haskell
+getRootSummary :: Target -> IO (Either ErrorMessages ExtendedModSummary)
+getRootSummary (Target (TargetFile file mb_phase) obj_allowed maybe_buf) = do
+	exists <- liftIO $ doesFileExist file
+	if exists || isJust maybe_buf
+	then summariseFile hsc_env old_summaries file mb_phase 
+							obj_allowed maybe_buf
+	else ... -- errorHandling
+getRootSummary (Target (TargetModule modl) ... ...) = ... 
+```
+
+Let's replace input variables with concrete terms
+```haskell
+getRootSummary (Target (TargetFile path_to_file Nothing) True Nothing) = 
+```
+so indeed, our program chooses the true branch in which performs `summariseFile`.
+
+
+# SummariseFile 
+```haskell
+summariseFile hsc_env [] path_to_file Nothing True Nothing
+```
+
+SummariseFile snippet
+```haskell
+-- summariseFile hsc_env old_summaries src_fn mb_phase obj_allowed maybe_buf
+summariseFile hsc_env [] path_to_file Nothing True Nothing
+  | Just old_summary <- findSummaryBySourceFile old_summaries src_fn = do .. -- since old_summaries is empty, we can never find it 
+  | otherwise = do 
+           src_timestamp <- get_src_timestamp
+           new_summary src_fn src_timestamp  
+ where 
+	 new_summary src_fn src_timestamp = runExceptT $ do 
+	    preimps@PreprocessedImports{..} <- getPreprocessedImports hsc_env src_fn mb_phase                                                          maybe_buf 
+	                    -- getPreprocessedImports hsc_env path_to_file Nothing Nothing 
+```
+
+
+
+# getPreprocessedImports
+
+```haskell
+getPreprocessedImports :: HscEnv -> FilePath -> Maybe Phase -> Maybe (StringBuffer, UTCTime) -> ExceptT ErrorMessages IO PreprocessedImports
+-- getPreprocessedImports hsc_env src_fn mb_phase maybe_buf
+getPreprocessedImports hsc_env path_to_file Nothing Nothing = do 
+--(pi_local_dflags, pi_hspp_fn) <- ExceptT $ preprocess hsc_env src_fn (fst <$> maybe_buf) mb_phase
+   <- ExceptT $ preprocess hsc_env path_to_file Nothing Nothing
+```
+
+# proprocess 
+The main point for this function is to provide error-handling for `runPipeline`. 
+The definition for `anyHsc` is 
+```haskell
+anyHsc :: Phase
+anyHsc = Hsc (panic "anyHsc")
+```
+Since we only simply load the hs file, we dont do any fancy code generation
+
+From my presumption, this indicates that the input 
+
+```haskell
+preprocess :: HscEnv -> FilePath -> Maybe InputFileBuffer -> Maybe Phase -> IO (Either ErrorMessages (DynFlags,FilePath))
+--preprocess hsc_env input_fn mb_input_buf mb_phase = 
+preprocess hsc_env path_to_file Nothing Nothing = 
+  ... (error handling code) 
+  (dflags, fp, mb_iface) <- runPipeline anyHsc hsc_env (input_fn, mb_input_buf, fmap RealPhase mb_phase) Nothing (Temporary TFL_GhcSession) Nothing []
+  MASSERT(isNothing mb_iface)
+  return (dflags, fp)
+  where 
+  ... (helper functions for exception )
+```
+
+
+# runPipeline <- finally h
+
+```haskell
+runPipeline :: Phase -> HscEnv
+                         -> (String, Maybe InputFileBuffer, Maybe PhasePlus) 
+                         -> Maybe String
+                         -> PipelineOutput
+                         -> Maybe ModLocation
+                         -> [String]
+                         -> IO (DynFlags, String, Maybe ModIface)
+--runPipeline stop_phase hsc_env0 (input_fn, mb_input_buf,mb_phase) mb_basename output maybe_loc foregin_os
+runPipeline anyHsc hsc_env (path_to_file, Nothing,Nothing) Nothing (Temporary TFL_GhcSession) Nothing [] = do let 
+-- first preparing useful variables
+			dflags0 = hsc_dflags hsc_env0
+            -- Decide where dump files should go based on the pipeline output
+            -- the dumpPrefix field is set to "./.../studentProgram."
+            dflags = dflags0 { dumpPrefix = Just (basename ++ ".") }
+            hsc_env = hsc_env0 {hsc_dflags = dflags}
+            logger = hsc_logger hsc_env
+            tmpfs  = hsc_tmpfs  hsc_env
+            (input_basename, suffix) = splitExtension input_fn
+            -- suffix' = "hs"
+            suffix' = drop 1 suffix -- strip off the .
+            -- for example basename = "./.../studentProgram"
+            basename | Just b <- mb_basename = b
+                      | otherwise             = input_basename
+		     
+		     -- If we were given a -x flag, then use that phase to start from
+		     -- start_phase = RealPhase (startPhase "hs") as mb_phase = Nothing
+             start_phase = fromMaybe (RealPhase (startPhase suffix')) mb_phase
+             
+             isHaskell (RealPhase (Unlit _)) = True
+             isHaskell (RealPhase (Cpp   _)) = True
+             isHaskell (RealPhase (HsPp  _)) = True
+             isHaskell (RealPhase (Hsc   _)) = True
+             isHaskell (HscOut {})           = True
+             isHaskell _                     = False
+	         -- isHaskellishFile = True
+             isHaskellishFile = isHaskell start_phase
+		     
+		     env = PipeEnv{ stop_phase, -- hsc
+                            src_filename = input_fn, -- "./.../studentProgram.hs"
+                            src_basename = basename, -- "./.../studentProgram"
+                            src_suffix = suffix',  -- "hs"
+                            output_spec = output } -- "./.../studentProgram.hs"
+	        -- backpackish_suffixes = [ "bkp" ]
+	        -- what's "bkp", any way, we wouldn't throw this error what's so ever
+	         when (isBackpackishSuffix suffix') $
+		           throwGhcExceptionIO (UsageError
+                       ("use --backpack to process " ++ input_fn))
+
+			-- happensBefore' :: Phase -> Phase -> Bool
+		    let happensBefore' = happensBefore (targetPlatform dflags)
+		    -- error checking to make sure that there is a path from start_phase to stop_phase
+		    -- in our case, start_phase == stop_phase, 
+	         case start_phase of
+	             RealPhase start_phase' ->
+	                 -- See Note [Partial ordering on phases]
+	                 -- Not the same as: (stop_phase `happensBefore` start_phase')
+	                 when (not (start_phase' `happensBefore'` stop_phase ||
+	                            start_phase' `eqPhase` stop_phase)) $
+	                       throwGhcExceptionIO (UsageError
+	                                   ("cannot compile this file to desired target: "
+	                                      ++ input_fn))
+	             HscOut {} -> return ()
+	            -
+	             -- As mb_input_buf is Nothing, so the following snippet does nothing for us
+		         input_fn' <- case (start_phase, mb_input_buf) of
+		             (RealPhase real_start_phase, Just input_buf) -> do
+		                 let suffix = phaseInputExt real_start_phase
+		                 fn <- newTempName logger tmpfs dflags TFL_CurrentModule suffix
+		                 hdl <- openBinaryFile fn WriteMode
+		                 -- Add a LINE pragma so reported source locations will
+		                 -- mention the real input file, not this temp file.
+		                 hPutStrLn hdl $ "{-# LINE 1 \""++ input_fn ++ "\"#-}"
+		                 hPutStringBuffer hdl input_buf
+		                 hClose hdl
+		                 return fn
+		             (_, _) -> return input_fn
+		        -- finally start running the pipeline  
+			     debugTraceMsg logger dflags 4 (text "Running the pipeline")
+                 r <- runPipeline' start_phase hsc_env env input_fn'
+                           maybe_loc foreign_os
+```
+
+# runPipeline'
+
+```haskell
+runPipeline'
+  :: PhasePlus                  -- ^ When to start
+  -> HscEnv                     -- ^ Compilation environment
+  -> PipeEnv
+  -> FilePath                   -- ^ Input filename
+  -> Maybe ModLocation          -- ^ A ModLocation, if this is a Haskell module
+  -> [FilePath]                 -- ^ foreign objects, if we have one
+  -> IO (DynFlags, FilePath, Maybe ModIface)
+                                -- ^ (final flags, output filename, interface)
+-- this hsc_env is longer the one we generated at depanalE, it has dflags modified in runPipeline
+-- env is what we defined in line 203 
+
+-- runPipeline' anyHsc hsc_env env path_to_file Nothing []                      
+runPipeline' start_phase hsc_env env input_fn
+             maybe_loc foreign_os
+  = do
+  -- Execute the pipeline...
+  let state = PipeState{ hsc_env, maybe_loc, foreign_os = foreign_os, iface = Nothing}
+  (pipe_state, fp) <- evalP (pipeLoop start_phase input_fn) env state
+  return (pipeStateDynFlags pipe_state, fp, pipeStateModIface pipe_state)
+```
+
+The definition for `evalP` and `CompPiepline`
+
+```haskell
+evalP :: CompPipeline a -> PipeEnv -> PipeState -> IO (PipeState, a)
+evalP (P f) env st = f env st
+
+newtype CompPipeline a = P { unP :: PipeEnv -> PipeState -> IO (PipeState, a) }
+    deriving (Functor)
+```

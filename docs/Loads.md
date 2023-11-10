@@ -204,7 +204,7 @@ runPipeline anyHsc hsc_env (path_to_file, Nothing,Nothing) Nothing (Temporary TF
                             src_filename = input_fn, -- "./.../studentProgram.hs"
                             src_basename = basename, -- "./.../studentProgram"
                             src_suffix = suffix',  -- "hs"
-                            output_spec = output } -- "./.../studentProgram.hs"
+                            output_spec = output } -- (Temporary TFL_GhcSession) 
 	        -- backpackish_suffixes = [ "bkp" ]
 	        -- what's "bkp", any way, we wouldn't throw this error what's so ever
 	         when (isBackpackishSuffix suffix') $
@@ -259,14 +259,15 @@ runPipeline'
                                 -- ^ (final flags, output filename, interface)
 -- this hsc_env is longer the one we generated at depanalE, it has dflags modified in runPipeline
 -- env is what we defined in line 203 
-
 -- runPipeline' anyHsc hsc_env env path_to_file Nothing []                      
 runPipeline' start_phase hsc_env env input_fn
              maybe_loc foreign_os
   = do
   -- Execute the pipeline...
   let state = PipeState{ hsc_env, maybe_loc, foreign_os = foreign_os, iface = Nothing}
+  -- pipe_state is the same as state, as pipeLoop does nothing
   (pipe_state, fp) <- evalP (pipeLoop start_phase input_fn) env state
+  -- (the flags we setted in the first place, path_to_file, Nothing)
   return (pipeStateDynFlags pipe_state, fp, pipeStateModIface pipe_state)
 ```
 
@@ -279,3 +280,19 @@ evalP (P f) env st = f env st
 newtype CompPipeline a = P { unP :: PipeEnv -> PipeState -> IO (PipeState, a) }
     deriving (Functor)
 ```
+
+# pipeLoop
+so we entering `pipeLoop` with 2 variables, 
+```haskell
+ env = PipeEnv{ stop_phase, -- hsc
+				src_filename = input_fn, -- "./.../studentProgram.hs"
+				src_basename = basename, -- "./.../studentProgram"
+				src_suffix = suffix',  -- "hs"
+				output_spec = output } -- "./.../studentProgram.hs"
+--  hsc_env here is the new one
+st = PipeState { hsc_env, Nothing, [] , iface = Nothing}
+```
+
+Although the code in `pipeLoop` seems bizarre, it turns out this function literally does nothing for us, as our `start_phase` is equivalent to `stop_phase` and our output will be tunnel to `Temporary`, the function just return the path to the file.
+
+to back to `runPipeline'`

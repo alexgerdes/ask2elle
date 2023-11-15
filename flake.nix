@@ -3,6 +3,9 @@
   inputs = { nixpkgs-master.url = "github:NixOS/nixpkgs/nixos-unstable"; };
 
   outputs = inputs@{ self, nixpkgs-master, ... }:
+
+
+
     let
       # GENERAL
       supportedSystems =
@@ -79,6 +82,7 @@
       haskell = perSystem (system: (haskell.projectFor system));
       devShells = perSystem (system: {
         default = self.haskell.${system};
+        # nix develop .#debugGHC  <- type LHS to enter customized GHC environment
         debugGHC = self.debugGHC.${system};
       });
       packages = perSystem (system: { default = self.haskell.${system}; });

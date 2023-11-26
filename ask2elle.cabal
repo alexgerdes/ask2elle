@@ -57,6 +57,7 @@ library ghc-stage
   import:           common-warnings
   import:           common-extensions
   other-modules:
+    GhcLib.GHC.Driver.Make
     GhcLib.Utility.Bag
     GhcLib.Utility.Flags
     GhcLib.Utility.Utility

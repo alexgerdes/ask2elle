@@ -1,5 +1,4 @@
-module Test where  
+module Test where 
 
-
-main :: IO ()
-main = pure ()
+test :: Char
+test = '1' 2 

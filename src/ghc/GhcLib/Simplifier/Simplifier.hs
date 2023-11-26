@@ -5,17 +5,30 @@ import GHC.Data.Bag qualified as GHC
 import GHC.Data.EnumSet qualified as GHCEnumSet
 import GHC.Driver.Monad qualified as GHC
 import GHC.Driver.Session qualified as GHC
+import GHC.Driver.Main qualified as GHC
+import GHC.Driver.Make qualified as GHC
 import GHC.LanguageExtensions.Type qualified as GHC
+import GHC.Unit.Module.Graph qualified as GHC
 import GHC.Plugins qualified as GHC
 import GHC.Types.Error qualified as GHC
+import GHC.Data.Graph.Directed qualified as GHC
 import GHC.Utils.Logger qualified as GHCLogger
+import GHC.Utils.Error qualified as GHCUtils
+import GHC.Unit.Home.ModInfo qualified as GHC
+import GHC.Linker.Types qualified as GHC
+import GhcLib.GHC.Driver.Make qualified as GHC
+import GHC.Runtime.Interpreter qualified as GHC
+import GHC.Conc qualified as GHC
+
 
 import Control.Monad.Catch
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
+import Control.Exception (evaluate)
 import Control.Monad.Reader
 import Data.Either
 import Data.IORef (IORef, newIORef)
 import Data.Maybe
+import Data.List
 import Data.String (IsString (fromString))
 
 import System.FilePath (takeBaseName)
@@ -26,12 +39,14 @@ import GhcLib.Utility.Flags
 import GhcLib.Utility.Utility
 import GhcLib.Utility.Warning
 
+
+
 data SimplifyOption = SimplifyOption
     { getSimplifyTargetPath :: FilePath
     , getSimplifyTargetName :: String
     }
     deriving stock (Show)
-data SimplifyingError = FailedUnloading | FailedLoading | NotInsideModuleGraph | ParsingError GHC.ErrorMessages
+data SimplifyingError = FailedUnloading | FailedLoading | NotInsideModuleGraph GHC.SDoc | ParsingError GHC.ErrorMessages
     deriving stock (Show)
 
 -- data SimplifyingResult = ParsingError GHC.ErrorMessages | TypeCheckingError | DesugaringError
@@ -112,7 +127,7 @@ loadWithoutPlugins targetFile = do
     -- GHC.setSessionDynFlags dflags{GHC.outputFile_ = Nothing}
     GHC.setTargets [targetFile]
     -- ! This operation failed if the target is not well-formed haskell file
-    -- loadingFlag <- GHC.load GHC.LoadAllTargets
+    -- lo GHC.load GHC.LoadAllTargets
     -- guardS (GHC.succeeded loadingFlag) (fromString $ "Error : Failed to load target : " ++ targetFP) FailedLoading
     hsFile <- liftS $ asks getSimplifyTargetName
     -- ? What does load really do? The description indicates that it parses and typechecks the target file
@@ -121,8 +136,133 @@ loadWithoutPlugins targetFile = do
     -- ?                       some part of examination of load is put inside docs folder
     maybeLoaded <- GHC.handleSourceError (pure . Left . GHC.srcErrorMessages) (Right <$> GHC.load GHC.LoadAllTargets)
     guardS (isRight maybeLoaded) (fromString $ "Error : Failed to parse " ++ hsFile) (ParsingError $ fromLeft GHC.emptyBag maybeLoaded)
-
     guardS (GHC.succeeded $ fromRight GHC.Succeeded maybeLoaded) (fromString $ "Error : Failed to load target : " ++ targetFP) FailedLoading
+
+-- Main copied from GHC 9.2.8 load function, but keep typecheck result 
+-- check more detailed documentations in GHC haddoc page 
+customizedLoad :: Simplify ()
+customizedLoad  = do 
+    (err, mod_graph) <- GHC.depanalE [] False
+    
+    pure ()
+
+-- >>> take 10 [x | x <- [1..], odd x]
+
+
+customizedLoad' :: Maybe GHC.Messager -> GHC.ModuleGraph -> Simplify ()
+customizedLoad' mHscMessage mod_graph = do
+    GHC.modifySession $ \hsc_env -> hsc_env {GHC.hsc_mod_graph = mod_graph}
+    -- GHC.guessOutputFile -- ? not sure we need this function
+    hsc_env <- GHC.getSession 
+
+    let hpt1 = GHC.hsc_HPT hsc_env 
+        dflags = GHC.hsc_dflags hsc_env 
+        logger = GHC.hsc_logger hsc_env
+        interp = GHC.hscInterp hsc_env
+
+    let all_home_mods =
+          -- take all modules which are derived from hs-boot files
+          GHC.mkUniqSet [ GHC.ms_mod_name s
+                    | s <- GHC.mgModSummaries mod_graph, GHC.isBootSummary s == GHC.NotBoot]
+
+     
+    let mg2_with_srcimps :: [GHC.SCC GHC.ModSummary]
+        mg2_with_srcimps = GHC.filterToposortToModules $
+                    GHC.topSortModuleGraph True mod_graph Nothing
+
+    -- If we can determine that any of the {-# SOURCE #-} imports
+    -- are definitely unnecessary, then emit a warning.
+    GHC.warnUnnecessarySourceImports mg2_with_srcimps
+
+    let
+        -- check the stability property for each module.
+        stable_mods@(stable_obj,stable_bco)
+            = GHC.checkStability hpt1 mg2_with_srcimps all_home_mods
+
+        pruned_hpt = hpt1
+
+    _ <- liftIO $ evaluate pruned_hpt
+
+    -- before we unload anything, make sure we don't leavedebugTraceMsg  an old
+    -- interactive context around pointing to dead bindings.  Also,
+    -- write the pruned HPT to allow the old HPT to be GC'd.
+    GHC.setSession $ GHC.discardIC $ hsc_env { GHC.hsc_HPT = pruned_hpt }
+
+    let msg = GHC.text "Stable obj:" GHC.<+> GHC.ppr stable_obj GHC.$$
+                            GHC.text "Stable BCO:" GHC.<+> GHC.ppr stable_bco
+    liftIO $ GHCUtils.debugTraceMsg logger dflags 2 msg
+
+    let stable_linkables = [ linkable
+                        | m <- GHC.nonDetEltsUniqSet stable_obj ++
+                                GHC.nonDetEltsUniqSet stable_bco,
+                            -- It's OK to use nonDetEltsUniqSet here
+                            -- because it only affects linking. Besides
+                            -- this list only serves as a poor man's set.
+                            Just hmi <- [GHC.lookupHpt pruned_hpt m],
+                            Just linkable <- [GHC.hm_linkable hmi] ]
+    liftIO $ GHC.unload interp hsc_env stable_linkables
+    
+    let full_mg, partial_mg0, partial_mg, unstable_mg :: [GHC.SCC GHC.ModuleGraphNode]
+        stable_mg :: [GHC.SCC GHC.ExtendedModSummary]
+        full_mg  = GHC.topSortModuleGraph False mod_graph Nothing
+
+        maybe_top_mod = Nothing
+        -- LoadDependenciesOf m: we want the upsweep to stop just
+        -- short of the specified module (unless the specified module
+        -- is stable).
+        partial_mg0 = GHC.topSortModuleGraph False mod_graph maybe_top_mod
+        partial_mg = partial_mg0
+
+        stable_mg = [ GHC.AcyclicSCC ems
+            | GHC.AcyclicSCC (GHC.ModuleNode ems@(GHC.ExtendedModSummary ms _)) <- full_mg
+            , stable_mod_summary ms
+            ]
+        stable_mod_summary ms =
+            GHC.ms_mod_name ms `GHC.elementOfUniqSet` stable_obj ||
+            GHC.ms_mod_name ms `GHC.elementOfUniqSet` stable_bco
+
+        -- the modules from partial_mg that are not also stable
+        -- NB. also keep cycles, we need to emit an error message later
+        unstable_mg = filter not_stable partial_mg
+          where not_stable (GHC.CyclicSCC _) = True
+                not_stable (GHC.AcyclicSCC (GHC.InstantiationNode _)) = True
+                not_stable (GHC.AcyclicSCC (GHC.ModuleNode (GHC.ExtendedModSummary ms _)))
+                   = not $ stable_mod_summary ms
+        -- Load all the stable modules first, before attempting to load
+        -- an unstable module (#7231).
+        mg = fmap (fmap GHC.ModuleNode) stable_mg ++ unstable_mg
+
+    liftIO $ GHCUtils.debugTraceMsg logger dflags 2 (GHC.hang (GHC.text "Ready for upsweep")
+                               2 (GHC.ppr mg))
+
+    n_jobs <- case GHC.parMakeCount dflags of
+                    Nothing -> liftIO GHC.getNumProcessors
+                    Just n  -> return n
+    -- let upsweep_fn | n_jobs > 1 = parUpsweep n_jobs
+    --                | otherwise  = upsweep
+        
+
+        
+
+    pure ()
+    pure ()
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 initEnv :: Bool -> [GHC.GeneralFlag] -> Simplify (IORef [Warning])
 initEnv keepDefaultFlags flags = do
@@ -145,7 +285,7 @@ toDesugar' keepExistingFlags flags = do
     hsFile <- liftS $ asks getSimplifyTargetName
     ref <- initEnv keepExistingFlags flags
     modSum <- getMaybeSModSummary $ GHC.mkModuleName hsFile
-    guardS (isJust modSum) (fromString $ "Error : " ++ hsFile ++ " is not part of the module graph") NotInsideModuleGraph
+    -- guardS (isJust modSum) (fromString $ "Error : " ++ hsFile ++ " is not part of the module graph") NotInsideModuleGraph
     -- maybeParsed <-onError (Right <$> GHC.parseModule (fromJust modSum)) (\sourceError -> pure . Left . GHC.srcErrorMessages sourceError)
     -- ! How come handleSourceError fails to catch the exception?
     -- _ <- throwM FailedUnloading `catch` \e -> liftIO $ putStrLn ("Caught " ++ show (e :: SimplifyingError))

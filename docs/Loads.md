@@ -5,7 +5,7 @@ it first calls `depanalE` with empty excluded modules, represented by `[]` and o
 ```haskell
 hsc_env <- getSession
 ```  
-The session was setted up when we were calling `runGhcT` function, check `newHscEnv` for concrete values.
+The session was setted up when we were calling `runGhcT` function, check `newHscEnv` for concrete values. Also `runGhcT` chooses a default dynamic flag environment for us, depending which operating system we are running.
 
 So far, we have already performed `setFlags` which modifies the dynamic flag field, `hs_dflags`, and `setTarget` which modifies `hsc_targets` field.
 
@@ -121,7 +121,7 @@ summariseFile hsc_env [] path_to_file Nothing True Nothing
  where 
 	 new_summary src_fn src_timestamp = runExceptT $ do 
 	    preimps@PreprocessedImports{..} <- getPreprocessedImports hsc_env src_fn mb_phase                                                          maybe_buf 
-	                    -- getPreprocessedImports hsc_env path_to_file Nothing Nothing 
+	-- getPreprocessedImports hsc_env path_to_file Nothing Nothing 
 ```
 
 
@@ -152,9 +152,12 @@ preprocess :: HscEnv -> FilePath -> Maybe InputFileBuffer -> Maybe Phase -> IO (
 --preprocess hsc_env input_fn mb_input_buf mb_phase = 
 preprocess hsc_env path_to_file Nothing Nothing = 
   ... (error handling code) 
+  -- jumps to analysis of `runPipeline`
   (dflags, fp, mb_iface) <- runPipeline anyHsc hsc_env (input_fn, mb_input_buf, fmap RealPhase mb_phase) Nothing (Temporary TFL_GhcSession) Nothing []
+  -- since runPipeline returns (dflags, fp, Nothing)
   MASSERT(isNothing mb_iface)
   return (dflags, fp)
+  -- we can safely returns back to getPreprocessedImports
   where 
   ... (helper functions for exception )
 ```
@@ -241,8 +244,10 @@ runPipeline anyHsc hsc_env (path_to_file, Nothing,Nothing) Nothing (Temporary TF
 		             (_, _) -> return input_fn
 		        -- finally start running the pipeline  
 			     debugTraceMsg logger dflags 4 (text "Running the pipeline")
-                 r <- runPipeline' start_phase hsc_env env input_fn'
+          r <- runPipeline' start_phase hsc_env env input_fn'
                            maybe_loc foreign_os
+          --  The following line is insanely complex, with all dynamic flags passing around, with platform specific stuffs. I assume we dont encounter `DT_Failed` and carry on
+          pure r 
 ```
 
 # runPipeline'

@@ -253,7 +253,7 @@ initEnv keepDefaultFlags flags = do
     return ref
 
 -- toDesugar' :: Bool -> [GHC.GeneralFlag] -> Simplify (GHC.ModGuts, GHC.ParsedSource, IORef [Warning])
-toDesugar' :: Bool -> [GHC.GeneralFlag] -> Simplify ()
+toDesugar' :: Bool -> [GHC.GeneralFlag] -> Simplify (GHC.ModGuts, GHC.ParsedSource)
 -- | Compile a file to the desugar pass + simple optimiser and return Modguts and warnings
 toDesugar' keepExistingFlags flags = do
     hsFile <- liftS $ asks getSimplifyTargetName
@@ -265,18 +265,14 @@ toDesugar' keepExistingFlags flags = do
     eitherParsed <- GHC.handleSourceError (pure . Left . GHC.srcErrorMessages) (Right <$>  GHC.parseModule (fromJust modSum))
     guardS (isRight eitherParsed) (fromString $ "Error : Failed to parse " ++ hsFile) (ParsingError $ fromLeft GHC.emptyBag eitherParsed)
     -- * Checking if the module is well-typed
-    let safeParseResult = fromRight (error "Impossible : shoud be a Right value, but received a Left") eitherParsed
+    let safeParseResult = fromRight (error "Impossible : This shoud be a Right parsed module value, but received a Left") eitherParsed
     eitherTyped <- GHC.handleSourceError (pure . Left . GHC.srcErrorMessages) (Right <$>  GHC.typecheckModule safeParseResult)
-    guardS (isRight eitherTyped) (fromString $ "Error : Failed to typechecking " ++ hsFile) (TypecheckingError $ fromLeft GHC.emptyBag eitherTyped)
-    
-
-    -- -- let tprog = attachNote (tm_typechecked_source tmod)
-    -- dmod <- GHC.desugarModule tmod -- (tmod {tm_typechecked_source = tprog})
-    -- let modguts = GHC.coreModule dmod
-    -- -- cprog <- liftIO $ preProcess (mg_binds modguts) -- apply preprocessing transformations
-    -- -- let mg = modguts {mg_binds = cprog}
-    -- return (modguts, GHC.pm_parsed_source pmod, ref)
-    pure ()
+    guardS (isRight eitherTyped) (fromString $ "Error : Failed to type check " ++ hsFile) (TypecheckingError $ fromLeft GHC.emptyBag eitherTyped)   
+    -- * Desugaring the typechecked module
+    let typecheckedResult = fromRight (error "Impossible : shoud be a Right well-typed value, but received a Left") eitherTyped
+    desugaredMod <- GHC.desugarModule typecheckedResult
+    let coreMod = GHC.dm_core_module desugaredMod
+    return (coreMod, GHC.pm_parsed_source safeParseResult)
 
 libDirPath :: IO FilePath
 libDirPath = init <$> readProcess "ghc" ["--print-libdir"] ""

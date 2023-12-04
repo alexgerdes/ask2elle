@@ -1,3 +1,5 @@
+-- ! Right now, this module is not needed.
+
 it first calls `depanalE` with empty excluded modules, represented by `[]` and only single root allowed, represented by `False`.
 
 # depanalE

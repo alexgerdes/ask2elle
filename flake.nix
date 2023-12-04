@@ -4,8 +4,6 @@
 
   outputs = inputs@{ self, nixpkgs-master, ... }:
 
-
-
     let
       # GENERAL
       supportedSystems =
@@ -51,7 +49,7 @@
 
           in project;
       };
-                     #  export LD_LIBRARY_PATH=${pkgs.gcc.cc.lib}/lib:$LD_LIBRARY_PATH
+      #  export LD_LIBRARY_PATH=${pkgs.gcc.cc.lib}/lib:$LD_LIBRARY_PATH
       debugGHC = rec {
         projectFor = system:
           let
@@ -63,17 +61,18 @@
               buildInputs = stdDevEnv.buildInputs ++ (with pkgs; [
                 # needed for running cabal with customized ghc
                 glibc
-                glib 
-                gmp 
-                numactl 
-                ncurses 
-              ]) ++ (with haskell-pkgs; [ cabal-fmt fourmolu ]);
+                glib
+                gmp
+                numactl
+                ncurses
+              ]) ++ [ pkgs.haskell.packages.ghc928.haskell-language-server ]
+                ++ (with haskell-pkgs; [ cabal-fmt fourmolu ]);
               shellHook = ''
                 export PATH=~/.cabal/bin:$PATH;
-                export PATH=~/Desktop/code/alexgerdes/ghc/_build/stage1/bin:$PATH;
+                export PATH=~/Desktop/code/alexgerdes/ghc-authentic/ghc/_build/stage1/bin:$PATH;
               '';
+              # the above PATH is hardcoded, adjust it accordingly.
             });
-
           in project;
       };
 
@@ -82,7 +81,7 @@
       haskell = perSystem (system: (haskell.projectFor system));
       devShells = perSystem (system: {
         default = self.haskell.${system};
-        # nix develop .#debugGHC  <- type LHS to enter customized GHC environment
+        # nix develop .#debugGHC  <- type the left command in terminal to enter customized GHC environment
         debugGHC = self.debugGHC.${system};
       });
       packages = perSystem (system: { default = self.haskell.${system}; });

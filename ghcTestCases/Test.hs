@@ -1,4 +1,6 @@
-module Test where 
+module Test where  
 
-test :: Char
-test = '1' 2 
+import Data.Maybe 
+
+test :: Maybe Int
+test = Just "string"

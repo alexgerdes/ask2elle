@@ -1,7 +1,6 @@
 dist-newstyle/
 .vscode/
 
-./ghcTestCases/*.hi
-./ghcTestCases/*.o
-
-
+ghcTestCases/*.dump-simpl
+ghcTestCases/*.hi
+ghcTestCases/*.o

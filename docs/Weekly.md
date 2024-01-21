@@ -110,3 +110,9 @@ more egonormic
 
 
 ````
+
+
+--- 
+A possible speed up 
+Right, we access uniplate functions for `CoreProgram` via `Data` instance. 
+According to the hoogle page, by adding `Uniplate` instance supports, functions could have 5x perfromance. <- dont think this is possibile any more, as this requires contributing to GHC directly, or do orphan instances work in this case? 

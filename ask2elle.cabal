@@ -57,23 +57,30 @@ library ghc-stage
   import:           common-warnings
   import:           common-extensions
   other-modules:
-    GhcLib.GHC.Driver.Make
+    GhcLib.Transform.Rename
+    GhcLib.Transform.Utility
     GhcLib.Utility.Bag
     GhcLib.Utility.Flags
     GhcLib.Utility.Utility
     GhcLib.Utility.Warning
 
-  exposed-modules:  GhcLib.Simplifier.Simplifier
+  -- GhcLib.GHC.Driver.Make
+  exposed-modules:
+    GhcLib.Simplifier.Simplifier
+    GhcLib.Transform.Transform
+
   build-depends:
     , base         ^>=4.16.4.0
     , containers
     , exceptions   ^>=0.10.4
     , filepath
     , ghc          >=9.2.5     && <9.3
+    , ghc-boot
     , ghc-boot-th
     , mtl
     , process
     , text         ^>=2.0
+    , uniplate
 
   default-language: Haskell2010
   hs-source-dirs:   src/ghc

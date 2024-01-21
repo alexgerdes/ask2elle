@@ -16,11 +16,11 @@ import GHC.Utils.Logger qualified as GHCLogger
 import GHC.Utils.Error qualified as GHCUtils
 import GHC.Unit.Home.ModInfo qualified as GHC
 import GHC.Linker.Types qualified as GHC
-import GhcLib.GHC.Driver.Make qualified as GHC
 import GHC.Runtime.Interpreter qualified as GHC
 import GHC.Conc qualified as GHC
 import GHC.Unit.Module.Graph qualified as GHC
 import GHC.Utils.Ppr qualified as GHC
+import GHC.Plugins qualified as GHC 
 
 
 
@@ -33,17 +33,20 @@ import Data.IORef (IORef, newIORef)
 import Data.Maybe
 import Data.List
 import Data.String (IsString (fromString))
-
 import System.FilePath (takeBaseName)
 import System.Process (readProcess)
+import System.IO (stdout)
 
 import GhcLib.Utility.Bag ()
 import GhcLib.Utility.Flags
 import GhcLib.Utility.Utility
 import GhcLib.Utility.Warning
-import GHC.Plugins (printSDoc)
-import System.IO (stdout)
-import qualified Control.Monad.Error as GHC
+import GhcLib.Transform.Transform
+import Control.Monad.RWS (MonadState(put))
+import Debug.Trace (traceM)
+
+
+
 
 
 
@@ -99,12 +102,40 @@ unSetExtensionFlag' :: GHC.Extension -> GHC.DynFlags -> GHC.DynFlags
 --      (except for -fno-glasgow-exts, which is treated specially)
 unSetExtensionFlag' f dflags = GHC.xopt_unset dflags f
 
+opt_set :: (GHC.DynFlags -> a -> GHC.DynFlags) -> [a] -> GHC.DynFlags -> GHC.DynFlags
+opt_set f flags df = Prelude.foldl f df flags
+
+eopt_unset :: GHC.DynFlags -> GHC.Extension -> GHC.DynFlags
+eopt_unset df ext = df{GHC.extensionFlags = GHCEnumSet.delete ext (GHC.extensionFlags df)}
+
+eopt_set :: GHC.DynFlags -> GHC.Extension -> GHC.DynFlags
+eopt_set df ext = df{GHC.extensionFlags = GHCEnumSet.insert ext (GHC.extensionFlags df)}
+
+
 setFlags :: Bool -> [GHC.GeneralFlag] -> Simplify ()
 
 -- | Set extra dynamic flags(flags from the command line) along with default always-on flags
 setFlags b flags = do
     currDynFlags <- GHC.getSessionDynFlags
+    -- let existingGenFlags = GHC.generalFlags currDynFlags
+    -- liftIO $ putStrLn "General Flags : "
+    -- mapM_ (\flag -> liftIO $ print $ show flag) $ GHCEnumSet.toList existingGenFlags
+    -- let existingWarnFlags = GHC.warningFlags currDynFlags
+    -- liftIO $ putStrLn "Warning Flags : "
+    -- mapM_ (\flag -> liftIO $ print $ show flag) $ GHCEnumSet.toList existingWarnFlags
+    -- let existingFatalFlags = GHC.fatalWarningFlags currDynFlags
+    -- liftIO $ putStrLn "Fatal Warning Flags : "
+    -- mapM_ (\flag -> liftIO $ print $ show flag) $ GHCEnumSet.toList existingFatalFlags
     let gflags = if b then GHCEnumSet.toList (GHC.generalFlags currDynFlags) ++ flags else flags
+        -- dflags =
+        --     ( opt_set gopt_unset unsetGenFlags
+        --         . opt_set wopt_unset unsetWarnFlags
+        --         . opt_set wopt_set setWarnFlags
+        --         . opt_set eopt_set extFlags
+        --         . opt_set eopt_unset unsetExtFlags
+        --         . opt_set gopt_set gflags
+        --     )
+        --     df
         disableGeneralFlag = foldl (flip GHC.unSetGeneralFlag') currDynFlags unsetGenFlags
         suppressWarningFlag = foldl GHC.wopt_unset disableGeneralFlag unsetWarnFlags
         enableWarningFlag = foldl GHC.wopt_set suppressWarningFlag setWarnFlags
@@ -118,6 +149,15 @@ setFlags b flags = do
     -}
 
     GHC.setSessionDynFlags enableGeneralFlag
+    -- let currGenFlags = GHC.generalFlags currDynFlags
+    -- liftIO $ putStrLn "General Flags : "
+    -- mapM_ (\flag -> liftIO $ print $ show flag) $ GHCEnumSet.toList $ GHCEnumSet.difference currGenFlags existingGenFlags
+    -- let currWarnFlags = GHC.warningFlags currDynFlags
+    -- liftIO $ putStrLn "Warning Flags : "
+    -- mapM_ (\flag -> liftIO $ print $ show flag) $ GHCEnumSet.toList $ GHCEnumSet.difference currWarnFlags existingWarnFlags
+    -- let currFatalFlags = GHC.fatalWarningFlags currDynFlags
+    -- liftIO $ putStrLn "Fatal Warning Flags : "
+    -- mapM_ (\flag -> liftIO $ print $ show flag) $ GHCEnumSet.toList $ GHCEnumSet.difference currFatalFlags existingFatalFlags
 
 -- | ghc loads the target file
 loadWithoutPlugins :: GHC.Target -> Simplify ()
@@ -154,7 +194,7 @@ loadWithoutPlugins targetFile = do
 --           GHC.mkUniqSet [ GHC.ms_mod_name s
 --                     | s <- GHC.mgModSummaries mod_graph, GHC.isBootSummary s == GHC.NotBoot]
 
-     
+
 --     let mg2_with_srcimps :: [GHC.SCC GHC.ModSummary]
 --         mg2_with_srcimps = GHC.filterToposortToModules $
 --                     GHC.topSortModuleGraph True mod_graph Nothing
@@ -190,7 +230,7 @@ loadWithoutPlugins targetFile = do
 --                             Just hmi <- [GHC.lookupHpt pruned_hpt m],
 --                             Just linkable <- [GHC.hm_linkable hmi] ]
 --     liftIO $ GHC.unload interp hsc_env stable_linkables
-    
+
 --     let full_mg, partial_mg0, partial_mg, unstable_mg :: [GHC.SCC GHC.ModuleGraphNode]
 --         stable_mg :: [GHC.SCC GHC.ExtendedModSummary]
 --         full_mg  = GHC.topSortModuleGraph False mod_graph Nothing
@@ -227,12 +267,12 @@ loadWithoutPlugins targetFile = do
 --     n_jobs <- case GHC.parMakeCount dflags of
 --                     Nothing -> liftIO GHC.getNumProcessors
 --                     Just n  -> return n
-    
+
 --     let upsweep_fn | n_jobs > 1 = parUpsweep n_jobs
 --                    | otherwise  = upsweep
-        
 
-        
+
+
 
 --     pure ()
 --     pure ()
@@ -242,7 +282,9 @@ loadWithoutPlugins targetFile = do
 initEnv :: Bool -> [GHC.GeneralFlag] -> Simplify (IORef [Warning])
 initEnv keepDefaultFlags flags = do
     hsFilePath <- liftS $ asks getSimplifyTargetPath
+    
     setFlags keepDefaultFlags flags
+    
     -- logger <- GHC.getLogger
     -- ! Not sure whether we need this in the future
     ref <- liftIO (newIORef [])
@@ -267,12 +309,27 @@ toDesugar' keepExistingFlags flags = do
     -- * Checking if the module is well-typed
     let safeParseResult = fromRight (error "Impossible : This shoud be a Right parsed module value, but received a Left") eitherParsed
     eitherTyped <- GHC.handleSourceError (pure . Left . GHC.srcErrorMessages) (Right <$>  GHC.typecheckModule safeParseResult)
-    guardS (isRight eitherTyped) (fromString $ "Error : Failed to type check " ++ hsFile) (TypecheckingError $ fromLeft GHC.emptyBag eitherTyped)   
+    guardS (isRight eitherTyped) (fromString $ "Error : Failed to type check " ++ hsFile) (TypecheckingError $ fromLeft GHC.emptyBag eitherTyped)
     -- * Desugaring the typechecked module
     let typecheckedResult = fromRight (error "Impossible : shoud be a Right well-typed value, but received a Left") eitherTyped
     desugaredMod <- GHC.desugarModule typecheckedResult
     let coreMod = GHC.dm_core_module desugaredMod
+    -- * Print the core module
+    liftIO $ putStrLn "Core Module : "
+    liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr $ GHC.mg_binds coreMod)
+    liftIO $ putStrLn "\n------------------------------------"
     return (coreMod, GHC.pm_parsed_source safeParseResult)
+
+
+toDesugar :: Simplify (GHC.CoreProgram, GHC.ParsedSource)
+-- | Desugar and return coreprogram and warnings
+toDesugar = do
+    (mgCore, parsedSourceCode) <- toDesugar' False (holeFlags ++ genFlags)
+    uniqSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
+    let prog = preProcess  uniqSupply $ GHC.mg_binds mgCore
+    liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr $ prog)
+    return (prog, parsedSourceCode)
+
 
 libDirPath :: IO FilePath
 libDirPath = init <$> readProcess "ghc" ["--print-libdir"] ""
@@ -287,7 +344,7 @@ test' = do
         $ GHC.runGhcT (Just libDirPath')
         $ runSimplify
         $ do
-            _ <- toDesugar' True []
+            _ <- toDesugar
             let test = 0
             pure ()
     pure ()

@@ -1,8 +1,10 @@
 module Helium.Helium (compileFn, compileCode) where
 
 import Data.Text qualified as T
+import Data.Foldable 
 import Helium.Main.CompileUtils qualified as Helium
 import Helium.Utility.Compile qualified as Helium
+
 
 type Type = T.Text
 
@@ -29,6 +31,7 @@ compileCode moduleName code options = do
     pure $ fmap Helium.getModule compilationResult
 
 escape :: T.Text -> T.Text
-escape text = foldr (\(a, b) txt' -> T.replace a b txt') text rs
+escape text = foldl' (\txt' (a, b)  -> T.replace a b txt') text rs
   where
+    rs :: [(T.Text, T.Text)]
     rs = [("\\n", "\n"), ("\\\"", "\"")]

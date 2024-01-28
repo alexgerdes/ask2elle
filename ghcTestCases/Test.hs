@@ -7,4 +7,7 @@ import Data.Maybe
 --     Just x -> Just x
 --     Nothing -> Nothing
 
-test' = Left _ 
+test :: Char 
+test = case 'x' of 
+    'x' -> _
+    _ -> 'a'

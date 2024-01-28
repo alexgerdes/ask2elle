@@ -35,7 +35,7 @@ Currently, the following steps must be performed manually to build the project. 
    ```
      This tells cabal to use local packages for building projects instead of fetching them from Hackage.
 
-4. Execute the following commands:
+4. WExecute the following commands:
     ```bash
     cabal install lvm --overwrite-policy=always 
     cabal install Top --overwrite-policy=always 

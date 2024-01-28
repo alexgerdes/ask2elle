@@ -31,7 +31,7 @@ data HoleCandidates = HoleCandidates {
 ------------------------------------------------------
 replaceHoles :: GHC.UniqSupply -> GHC.CoreProgram -> GHC.CoreProgram
 -- | Replace holes (case typerror) with variables
-replaceHoles identSupply p =  evalState (repHoles p) $ HoleCandidates 0 $ GHC.listSplitUniqSupply identSupply
+replaceHoles holeIdentSupply p =  evalState (repHoles p) $ HoleCandidates 0 $ GHC.listSplitUniqSupply holeIdentSupply
     where repHoles :: GHC.CoreProgram -> State HoleCandidates GHC.CoreProgram
           repHoles = transformBiM $ \case
             c@(GHC.Case e v t [])
@@ -40,7 +40,8 @@ replaceHoles identSupply p =  evalState (repHoles p) $ HoleCandidates 0 $ GHC.li
                                 holeCount <- gets holeCount
                                 modify $ 
                                     \s -> s { holeCount = holeCount + 1, holeNameCandicate = tail holeIdCandidates }
-                                let id = fromJust (getTypErr e)
+                                
+                                let -- id = fromJust (getTypErr e)
                                     -- ! TODO : check the result of typ and t are the same 
                                     typ = GHC.exprType c -- might be another type
                                     uq = GHC.uniqFromSupply (head holeIdCandidates)
@@ -52,3 +53,17 @@ replaceHoles identSupply p =  evalState (repHoles p) $ HoleCandidates 0 $ GHC.li
             e -> return e
 
 
+replacePatErrors :: GHC.CoreProgram -> GHC.CoreProgram
+-- | Replace pattern errors (case patError) with variables
+replacePatErrors = repPatErr
+    where repPatErr :: GHC.CoreProgram -> GHC.CoreProgram
+          repPatErr = transformBi $ \case
+            c@(GHC.Case e v t []) -- we only replace paterrors with empty alternatives 
+                | isPatError c -> let id = fromJust (getPatErr e)
+                                      ty = GHC.exprType c -- check this type
+                                      name = makeName "patError" (GHC.getUnique id) (GHCOcc.getSrcSpan (GHC.varName v))
+                                      id' = GHC.setIdInfo (GHC.setVarType (GHC.setVarName v name) ty) idinf
+                                      idinf = GHC.setArityInfo GHC.vanillaIdInfo (GHC.exprArity e)
+                                   in GHC.Var (GHC.globaliseId id') 
+                | otherwise -> c
+            e -> e

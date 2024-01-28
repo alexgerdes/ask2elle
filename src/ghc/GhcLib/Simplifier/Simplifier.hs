@@ -42,6 +42,7 @@ import GhcLib.Utility.Flags
 import GhcLib.Utility.Utility
 import GhcLib.Utility.Warning
 import GhcLib.Transform.Transform
+import GhcLib.Utility.ShowCore
 import Control.Monad.RWS (MonadState(put))
 import Debug.Trace (traceM)
 
@@ -316,6 +317,7 @@ toDesugar' keepExistingFlags flags = do
     let coreMod = GHC.dm_core_module desugaredMod
     -- * Print the core module
     liftIO $ putStrLn "Core Module : "
+    liftIO $ putStrLn $ show $ GHC.mg_binds coreMod
     liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr $ GHC.mg_binds coreMod)
     liftIO $ putStrLn "\n------------------------------------"
     return (coreMod, GHC.pm_parsed_source safeParseResult)
@@ -325,8 +327,8 @@ toDesugar :: Simplify (GHC.CoreProgram, GHC.ParsedSource)
 -- | Desugar and return coreprogram and warnings
 toDesugar = do
     (mgCore, parsedSourceCode) <- toDesugar' False (holeFlags ++ genFlags)
-    uniqSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
-    let prog = preProcess  uniqSupply $ GHC.mg_binds mgCore
+    uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
+    let prog = preProcess uniqHoleSupply $ GHC.mg_binds mgCore
     liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr $ prog)
     return (prog, parsedSourceCode)
 

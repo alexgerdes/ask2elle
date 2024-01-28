@@ -6,7 +6,7 @@ import qualified GHC.Core as GHC
 import qualified GHC.Types.Var as GHC
 import Data.Map (Map)
 
-import GhcLib.Transform.Rename (replaceHoles)
+import GhcLib.Transform.Rename (replaceHoles, replacePatErrors)
 import qualified GHC.Types.Unique.Supply as GHC
 -- import Utils.Utils 
 -- import Transform.Eta ( etaReduce ) 
@@ -21,7 +21,7 @@ import qualified GHC.Types.Unique.Supply as GHC
 
 preProcess :: GHC.UniqSupply -> GHC.CoreProgram -> GHC.CoreProgram
 -- | Preprocessing transformations
-preProcess identSupply p = replaceHoles identSupply p -- >>= replacePatErrors
+preProcess identSupply p = replacePatErrors $ replaceHoles identSupply p -- >>= replacePatErrors
 
 -- normalise :: String -> CoreProgram -> IO (CoreProgram, Map Var Var)
 -- -- | Normalising transformations

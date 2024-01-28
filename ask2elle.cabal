@@ -61,6 +61,7 @@ library ghc-stage
     GhcLib.Transform.Utility
     GhcLib.Utility.Bag
     GhcLib.Utility.Flags
+    GhcLib.Utility.ShowCore
     GhcLib.Utility.Utility
     GhcLib.Utility.Warning
 
@@ -77,6 +78,7 @@ library ghc-stage
     , ghc          >=9.2.5     && <9.3
     , ghc-boot
     , ghc-boot-th
+    , megaparsec
     , mtl
     , process
     , text         ^>=2.0

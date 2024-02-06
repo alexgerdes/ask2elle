@@ -329,8 +329,78 @@ toDesugar = do
     (mgCore, parsedSourceCode) <- toDesugar' False (holeFlags ++ genFlags)
     uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
     let prog = preProcess uniqHoleSupply $ GHC.mg_binds mgCore
-    liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr $ prog)
+    liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr prog)
     return (prog, parsedSourceCode)
+
+
+-- toSimplify :: Simplify (GHC.CoreProgram, GHC.ParsedSource)
+-- -- | Replace holes and run simplifier
+-- toSimplify = do
+--   (mgCore, psrc) <- toDesugar' True (holeFlags ++ genFlags ++ simplFlags)
+--   env <- GHC.getSession
+--   uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
+--   let prog = preProcess uniqHoleSupply (GHC.mg_binds mgCore)
+--   mgSimpl <- liftIO $ core2core env (mgCore{GHC.mg_binds = prog})
+--   return (GHC.mg_binds mgSimpl, psrc)
+
+{- 
+-- ! Next week, starting here
+-- ! What does core2core do?
+
+-- !  examine the difference between the following four functions, and implement those
+compSimplNormalised :: ExerciseName -> FilePath -> IO CompInfo
+
+-- | Compile a file to normalised Core with simplifier
+compSimplNormalised name fp = defaultErrorHandler
+  defaultFatalMessager
+  defaultFlushOut
+  $ runGhc (Just libDirPath)
+  $ do
+    -- ! The ghc stuff starts here
+    (prog, psrc, wref) <- toSimplify fp
+    (normprog, names) <- liftIO $ normalise name prog
+    ws <- liftIO (readIORef wref)
+    return $ CompInfo (removeTyEvidence normprog) psrc (nubBy uniqWarns ws) names name
+
+compDesNormalised :: ExerciseName -> FilePath -> IO CompInfo
+
+-- | Compile a file to normalised Core without simplifier
+compDesNormalised name fp = defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libDirPath) $ do
+  (prog, psrc, ref) <- toDesugar fp
+  (prog', names) <- liftIO $ normalise name =<< preProcess prog
+  ws <- liftIO (readIORef ref)
+  return $ CompInfo (removeTyEvidence prog') psrc (nubBy uniqWarns ws) names name
+
+compSimpl :: ExerciseName -> FilePath -> IO CompInfo
+
+-- | Compile to simplified core directly, return renamed program and warnings
+compSimpl name fp = runGhc (Just libDirPath) $ do
+  (prog, psrc, ref) <- toSimplify fp
+  ws <- liftIO $ readIORef ref
+  (p', vars) <- liftIO $ alpha name prog -- =<< replacePatErrors prog
+  return $ CompInfo prog psrc (nubBy uniqWarns ws) Map.empty name
+
+compDes :: ExerciseName -> FilePath -> IO CompInfo
+
+-- | Compile to desugared core directly, return renamed program and warnings
+compDes name fp = runGhc (Just libDirPath) $ do
+  (prog, psrc, ref) <- toDesugar fp
+  ws <- liftIO $ readIORef ref
+  (p', vars) <- liftIO $ alpha name prog
+  return $ CompInfo p' psrc (nubBy uniqWarns ws) Map.empty name
+-}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 libDirPath :: IO FilePath

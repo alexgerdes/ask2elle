@@ -21,7 +21,7 @@ import qualified GHC.Types.Unique.Supply as GHC
 
 preProcess :: GHC.UniqSupply -> GHC.CoreProgram -> GHC.CoreProgram
 -- | Preprocessing transformations
-preProcess identSupply p = replacePatErrors $ replaceHoles identSupply p -- >>= replacePatErrors
+preProcess identSupply p = replacePatErrors $ replaceHoles identSupply p 
 
 -- normalise :: String -> CoreProgram -> IO (CoreProgram, Map Var Var)
 -- -- | Normalising transformations

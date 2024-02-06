@@ -1,4 +1,4 @@
-module Test where  
+```haskell
 
 dupli :: [Int] ->  [Int]
 dupli [] = []
@@ -6,7 +6,6 @@ dupli [x] = [x,x]
 dupli (x:xs) = [x,x] ++ dupli xs
 
 -- * After Desugared Core
-
 [Rec [
   (dupli,
     Lam ds_dul (Tick src<ghcTestCases/Test.hs:(4,1)-(6,32)> 
@@ -50,3 +49,4 @@ dupli (x:xs) = [x,x] ++ dupli xs
                       (App (Var []) (Type (TyConApp Int []))))))])])))]
                       
 ,NonRec $trModule (App (App (Var Module) (App (Var TrNameS) (Lit main))) (App (Var TrNameS) (Lit Test)))]
+```

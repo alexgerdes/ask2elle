@@ -39,8 +39,7 @@ replaceHoles holeIdentSupply p =  evalState (repHoles p) $ HoleCandidates 0 $ GH
                                 holeIdCandidates <- gets holeNameCandicate
                                 holeCount <- gets holeCount
                                 modify $ 
-                                    \s -> s { holeCount = holeCount + 1, holeNameCandicate = tail holeIdCandidates }
-                                
+                                    \s -> s { holeCount = holeCount + 1, holeNameCandicate = tail holeIdCandidates }      
                                 let -- id = fromJust (getTypErr e)
                                     -- ! TODO : check the result of typ and t are the same 
                                     typ = GHC.exprType c -- might be another type

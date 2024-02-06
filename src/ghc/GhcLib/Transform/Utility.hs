@@ -33,8 +33,10 @@ import qualified GHC.Utils.Ppr as GHC
 import System.IO (stdout)
 import qualified Text.Megaparsec as Parser
 import qualified Text.Megaparsec.Char as Parser
+import qualified Text.Megaparsec.Char.Lexer as Lexer
 import Data.Void (Void)
 import Control.Monad (replicateM_)
+import Control.Applicative (Alternative ((<|>)))
 
 
 -- * Functions for checking if an expression is a typed hole
@@ -54,18 +56,19 @@ isTypedHolErrMsg (GHC.LitString l) =
   let litStr = lines $ GHC.utf8DecodeByteString l
       checkHoleMsg :: [String] -> Bool 
       checkHoleMsg xs
-        -- The LitString could be just a regular  oneline string 
+        -- Hole Msgs are always more than 2 lines, we need to check if the second line indicates it is a hole message
         | length xs >= 2 = let holeMsg = xs !! 1 
-                           -- The LitString could be a multiline string, but without the hole message
                            in  case Parser.parseMaybe parseHoleErrStr holeMsg of 
+                                        -- The LitString could be a multiline string, but without the hole message
                                         Nothing -> False
                                         Just () -> True
+        -- The LitString could be just a regular oneline string 
         | otherwise = False
   in checkHoleMsg litStr
   where       
       parseHoleErrStr :: Parser.Parsec Void String ()
       parseHoleErrStr = do
-        replicateM_ 4 Parser.space
+        replicateM_ 4 Parser.space  -- ! This is hardcoded and might not work if the GHC error message output changes
         void $ Parser.string "• Found hole: _ ::"
         void $ Parser.many $ Parser.satisfy (const True) 
         Parser.eof
@@ -79,19 +82,13 @@ isPatError (GHC.Case e _ t _) = case getPatErr e of
 isPatError (GHC.Tick _ e) = isPatError e
 isPatError e = isPatErrVar e
 
-isPatErrVar :: GHC.CoreExpr -> Bool
-isPatErrVar (GHC.Var v) = isErrVar "patError" v
-isPatErrVar _ = False
-
--- * Utility functions for checking if an expression fits a certain pattern
-getTypErr :: GHC.CoreExpr -> Maybe GHC.Var
-getTypErr = getVarFromName "typeError"
 
 getPatErr :: GHC.CoreExpr -> Maybe GHC.Var
 getPatErr = getVarFromName "patError"
 
-isErrVar :: String -> GHC.Var -> Bool
-isErrVar s v = GHC.getOccString v == s
+
+getTypErr :: GHC.CoreExpr -> Maybe GHC.Var
+getTypErr = getVarFromName "typeError"
 
 getVarFromName :: String -> GHC.CoreExpr -> Maybe GHC.Var
 getVarFromName name e
@@ -99,8 +96,19 @@ getVarFromName name e
     -- ? this seems a hacky way to get the right variable, no idea it works for every situation
     | otherwise = head vars -- just return first found variable if any matching
   where
-    vars = [Just v | (GHC.Var v) <- children e, GHC.getOccString v == name]
+    vars = [Just v | (GHC.Var v) <- universe e, GHC.getOccString v == name]
 
+
+
+isPatErrVar :: GHC.CoreExpr -> Bool
+isPatErrVar (GHC.Var v) = isErrVar "patError" v
+isPatErrVar _ = False
+
+-- * Utility functions for checking if an expression fits a certain pattern
+
+
+isErrVar :: String -> GHC.Var -> Bool
+isErrVar s v = GHC.getOccString v == s
 
 makeName :: String -> GHC.Unique -> GHC.SrcSpan -> GHC.Name
 {- | Create a name from a string and a variable
@@ -108,6 +116,36 @@ makeName :: String -> GHC.Unique -> GHC.SrcSpan -> GHC.Name
 -}
 makeName n uq loc = GHC.mkInternalName uq (GHC.mkOccName Occ.varName n) loc
 
+{- 
+isPatError :: GHC.CoreExpr -> Bool
+-- | Check if a case expression is a typed hole expression
+isPatError (GHC.Case e _ _ _) = hasPatErrMsg e     -- need to check hasHoleMsg if deferring all type errors
+isPatError (GHC.Tick _ e)     = isPatError e
+isPatError _              = False                -- and not only typed holes
 
--- >>> test 
--- "Failed to parse"
+-- | Take a GHC CoreExpr and check if it contains a hole message
+hasPatErrMsg :: GHC.CoreExpr -> Bool
+hasPatErrMsg e = not $ null [l | GHC.Lit l <- children e, isPatErrMsg l]
+
+-- | Take a GHC Literal and check if it is a typed hole error message
+isPatErrMsg :: GHC.Literal -> Bool
+isPatErrMsg (GHC.LitString l) = 
+  let litStr = GHC.utf8DecodeByteString l
+      checkErrMsg :: String -> Bool 
+      checkErrMsg xs = 
+                      case Parser.parseMaybe parsePatErrStr xs of 
+                                        Nothing -> False
+                                        Just () -> True
+  in checkErrMsg litStr
+  where       
+      parsePatErrStr :: Parser.Parsec Void String ()
+      parsePatErrStr = do
+        _ <- manyTill Parser.anySingle $ Parser.string "|case"
+        Parser.eof
+      manyTill :: Alternative m => m a -> m end -> m [a]
+      manyTill p end = go
+        where
+          go = ([] <$ end) <|> ((:) <$> p <*> go)
+isPatErrMsg _ = False
+
+-}

@@ -57,9 +57,11 @@ library ghc-stage
   import:           common-warnings
   import:           common-extensions
   other-modules:
+    GhcLib.Transform.Inline
     GhcLib.Transform.Rename
     GhcLib.Transform.Utility
     GhcLib.Utility.Bag
+    GhcLib.Utility.BinderEquality
     GhcLib.Utility.Flags
     GhcLib.Utility.ShowCore
     GhcLib.Utility.Utility
@@ -67,6 +69,7 @@ library ghc-stage
 
   -- GhcLib.GHC.Driver.Make
   exposed-modules:
+    GhcLib.Compiler.Compiler
     GhcLib.Simplifier.Simplifier
     GhcLib.Transform.Transform
 

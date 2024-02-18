@@ -21,10 +21,7 @@ import Data.Maybe (fromJust)
 
 import GhcLib.Transform.Utility
 
-data HoleCandidates = HoleCandidates {
-    holeCount :: !Int,
-    holeNameCandicate :: ![GHC.UniqSupply]
-  }
+
 
 
 -- alpha renaming and other replacing transformations
@@ -41,7 +38,7 @@ replaceHoles holeIdentSupply p =  evalState (repHoles p) $ HoleCandidates 0 $ GH
                                 modify $ 
                                     \s -> s { holeCount = holeCount + 1, holeNameCandicate = tail holeIdCandidates }      
                                 let -- id = fromJust (getTypErr e)
-                                    -- ! TODO : check the result of typ and t are the same 
+                                    -- ? TODO : check the result of typ and t are the same 
                                     typ = GHC.exprType c -- might be another type
                                     uq = GHC.uniqFromSupply (head holeIdCandidates)
                                     name = makeName ("hole_" ++ show holeCount) uq (GHCOcc.getSrcSpan (GHC.varName v)) 

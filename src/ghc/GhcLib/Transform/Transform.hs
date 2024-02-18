@@ -23,7 +23,7 @@ preProcess :: GHC.UniqSupply -> GHC.CoreProgram -> GHC.CoreProgram
 -- | Preprocessing transformations
 preProcess identSupply p = replacePatErrors $ replaceHoles identSupply p 
 
--- normalise :: String -> CoreProgram -> IO (CoreProgram, Map Var Var)
+-- normalise :: String -> GHC.CoreProgram -> IO (CoreProgram, Map Var Var)
 -- -- | Normalising transformations
 -- normalise name p = inlineBinds name p >>=
 --                    recToLetRec >>=

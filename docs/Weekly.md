@@ -116,3 +116,11 @@ more egonormic
 A possible speed up 
 Right, we access uniplate functions for `CoreProgram` via `Data` instance. 
 According to the hoogle page, by adding `Uniplate` instance supports, functions could have 5x perfromance. <- dont think this is possibile any more, as this requires contributing to GHC directly, or do orphan instances work in this case? 
+
+
+--- 
+1. Did Matilda consider using `deBruijnize` when writing her own Similar instance?
+2. What's wrong with the error in `BinderEquality.hs`?
+3. Should we consider running `inlineBinds` multiple times?
+4. What's the ideal way to handle impossible case? 
+

@@ -329,13 +329,16 @@ toDesugar :: Simplify (GHC.CoreProgram, GHC.ParsedSource)
 -- | Desugar and return coreprogram and warnings
 toDesugar = do
     (mgCore, parsedSourceCode) <- toDesugar' False (holeFlags ++ genFlags)
+
     uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
     let prog = preProcess uniqHoleSupply $ GHC.mg_binds mgCore
     uniqTopLevelLetRecSupply <- liftIO $ GHC.mkSplitUniqSupply 'R'
-    let inlineProg = recToLetRec uniqTopLevelLetRecSupply prog
-    liftIO $ putStrLn $ show inlineProg
+    -- let inlineProg = recToLetRec uniqTopLevelLetRecSupply prog
+    fnName <- liftS $ asks getSimplifyTargetName
+    let normalizedProg = normalise fnName uniqTopLevelLetRecSupply prog 
+    liftIO $ putStrLn $ show normalizedProg
     liftIO $ putStrLn "\n------------------------------------"
-    liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr inlineProg)
+    liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr normalizedProg)
     return (prog, parsedSourceCode)
 
 
@@ -349,19 +352,6 @@ toSimplify = do
   -- ! Need to examine the utility of core2core
   mgSimpl <- liftIO $ GHC.core2core env (mgCore{GHC.mg_binds = prog})
   return (GHC.mg_binds mgSimpl, psrc)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

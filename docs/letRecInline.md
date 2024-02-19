@@ -1,9 +1,11 @@
+-- the top level recursive fn compiles to non-rec binder by `recToLetRec` from `GhcLib.Transform.Inline`
+
 ```haskell
 length :: [a] -> Int 
 length [] = 0 
 length (x:xs) = 1 + length xs
 
--- the top level recursive fn compiles to non-rec binder
+
 [NonRec length' 
   (Let 
     (Rec [

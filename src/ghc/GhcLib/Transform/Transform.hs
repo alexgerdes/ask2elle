@@ -1,4 +1,4 @@
-module GhcLib.Transform.Transform  (preProcess) where
+module GhcLib.Transform.Transform  (preProcess, normalise) where
 -- module GhcLib.Transform.Transform  (normalise, preProcess, removeTyEvidence, alpha) where
 
 
@@ -10,7 +10,7 @@ import GhcLib.Transform.Rename (replaceHoles, replacePatErrors)
 import qualified GHC.Types.Unique.Supply as GHC
 -- import Utils.Utils 
 -- import Transform.Eta ( etaReduce ) 
--- import Transform.Inline ( inlineBinds, recToLetRec ) 
+import GhcLib.Transform.Inline  ( inlineBinds, recToLetRec ) 
 -- import Transform.Remove ( removeRedEqCheck, removeTyEvidence) 
 -- import Transform.Rename
 --     ( alpha, 
@@ -23,14 +23,11 @@ preProcess :: GHC.UniqSupply -> GHC.CoreProgram -> GHC.CoreProgram
 -- | Preprocessing transformations
 preProcess identSupply p = replacePatErrors $ replaceHoles identSupply p 
 
--- normalise :: String -> GHC.CoreProgram -> IO (CoreProgram, Map Var Var)
--- -- | Normalising transformations
--- normalise name p = inlineBinds name p >>=
---                    recToLetRec >>=
---                    removeRedEqCheck >>=
---                    replaceCaseBinds >>=
---                    etaReduce >>=
---                    alpha name
+normalise :: String -> GHC.UniqSupply -> GHC.CoreProgram -> GHC.CoreProgram 
+-- | Normalising transformations
+-- normalise name letRecSupply prog = recToLetRec letRecSupply $ inlineBinds name prog
+normalise name letRecSupply prog = inlineBinds name prog
+
 
 
 

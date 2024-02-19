@@ -21,6 +21,8 @@ import qualified Text.Megaparsec as Parser
 import qualified Text.Megaparsec.Char as Parser
 import Data.Void (Void)
 import GHC.Base (assert)
+import Data.Foldable (Foldable(foldl'))
+import Data.Bifunctor (Bifunctor(first, second))
 
 
 data HoleCandidates = HoleCandidates {
@@ -181,9 +183,9 @@ varAppearsInExpr :: GHC.Var -> GHC.CoreBind -> Bool
 -- | Find out whether or not a variable is used somewhere in a binder
 varAppearsInExpr  var expr = or [v == var | v <- universeBi expr]
 
-getBindersByVar :: [GHC.CoreBind] -> GHC.CoreBind -> [GHC.CoreBind]
+getBindersByVar :: [GHC.CoreBind] -> GHC.CoreBind -> ([GHC.CoreBind], [GHC.CoreBind])
   -- | Get all binders referencing the second argument
-getBindersByVar binds target = filter isUsed binds
+getBindersByVar binds target = foldl' (\acc bind -> if isUsed bind then first (bind :) acc else second (bind :) acc) ([],[]) binds
   where
       isUsed :: GHC.CoreBind -> Bool
       isUsed = varAppearsInExpr (getBindTopVar target)

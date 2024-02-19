@@ -1,10 +1,9 @@
 module Test where  
 
 
-even' :: Int -> Bool
-even' 0 = True
-even' n = odd' (n - 1)
+length :: [a] -> Int
+length xs = length' xs
 
-odd' :: Int -> Bool
-odd' 0 = False
-odd' n = even' (n - 1)
+length' :: [a] -> Int
+length' []  = 0
+length' (x:xs) = 1 + length' xs

@@ -49,9 +49,6 @@ import GhcLib.Transform.Inline (recToLetRec)
 
 
 
-
-
-
 data SimplifyOption = SimplifyOption
     { getSimplifyTargetPath :: FilePath
     , getSimplifyTargetName :: String

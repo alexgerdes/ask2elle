@@ -23,6 +23,7 @@ import Data.Void (Void)
 import GHC.Base (assert)
 import Data.Foldable (Foldable(foldl'))
 import Data.Bifunctor (Bifunctor(first, second))
+import Data.Data (Data)
 
 
 data HoleCandidates = HoleCandidates {
@@ -134,6 +135,8 @@ isErrVar s v = GHC.getOccString v == s
 isSpecVar :: GHC.Var -> Bool
 isSpecVar v = "$" == take 1 (GHC.getOccString v)
 
+isWild :: GHC.Var -> Bool
+isWild v = "wild" == GHC.getOccString v
 
 isTyConApp :: GHC.Type -> Bool
 isTyConApp (GHC.TyConApp _ _) = True
@@ -157,12 +160,12 @@ updateVar v = transformBi $ \e -> case e :: GHC.CoreExpr of
     rest -> rest
 
 
-{- | substitution takes a replacement variable and a target variable and a CoreExpr,
+{- | subsVar takes a replacement variable and a target variable and a CoreExpr,
        replacing every occurance of the target variable with the replacement variable in the CoreExpr
 -}
-substitution :: GHC.Var -> GHC.Var -> GHC.CoreExpr -> GHC.CoreExpr
-substitution replacement target =
-    -- trace ("found substitution" ++ show "["++ show v' ++ "->" ++ show v ++"]" ) $
+subsVar :: GHC.Var -> GHC.Var -> GHC.CoreExpr -> GHC.CoreExpr
+subsVar replacement target =
+    -- trace ("found subsVar" ++ show "["++ show v' ++ "->" ++ show v ++"]" ) $
     transformBi (sub replacement target)
     where
       sub :: GHC.Var -> GHC.Var -> GHC.CoreExpr -> GHC.CoreExpr
@@ -170,6 +173,13 @@ substitution replacement target =
       sub r t expr = case expr of
                         (GHC.Var ident) | ident == t -> GHC.Var r
                         e -> e
+
+subsExpr :: GHC.CoreExpr -> GHC.Var -> GHC.CoreExpr -> GHC.CoreExpr
+-- | Replace the variable with an expression
+subsExpr expr v = transformBi $ \case
+    (GHC.Var ident) | ident == v -> expr
+    e -> e
+
 
 getBindTopVar :: GHC.CoreBind -> GHC.Var
 {- |  Get variable of a binder
@@ -179,13 +189,17 @@ getBindTopVar (GHC.NonRec v _) = v
 getBindTopVar (GHC.Rec xs ) = assert (not (null xs)) $ fst $ head xs
 
 
-varAppearsInExpr :: GHC.Var -> GHC.CoreBind -> Bool
+varAppearsInBind :: GHC.Var -> GHC.CoreBind -> Bool
 -- | Find out whether or not a variable is used somewhere in a binder
-varAppearsInExpr  var expr = or [v == var | v <- universeBi expr]
+varAppearsInBind  var expr = or [v == var | v <- universeBi expr]
+
+varAppearsInExpr :: GHC.Var -> GHC.CoreExpr -> Bool
+-- | Find if a variable is used somewhere in an expression
+varAppearsInExpr v e = or [v == v' | v' <- universeBi e :: [GHC.Var]]
 
 getBindersByVar :: [GHC.CoreBind] -> GHC.CoreBind -> ([GHC.CoreBind], [GHC.CoreBind])
   -- | Get all binders referencing the second argument
 getBindersByVar binds target = foldl' (\acc bind -> if isUsed bind then first (bind :) acc else second (bind :) acc) ([],[]) binds
   where
       isUsed :: GHC.CoreBind -> Bool
-      isUsed = varAppearsInExpr (getBindTopVar target)
+      isUsed = varAppearsInBind (getBindTopVar target)

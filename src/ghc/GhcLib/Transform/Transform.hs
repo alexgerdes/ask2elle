@@ -1,32 +1,32 @@
 module GhcLib.Transform.Transform  (preProcess, normalise) where
--- module GhcLib.Transform.Transform  (normalise, preProcess, removeTyEvidence, alpha) where
-
 
 import qualified GHC.Core as GHC 
 import qualified GHC.Types.Var as GHC
-import Data.Map (Map)
 
-import GhcLib.Transform.Rename (replaceHoles, replacePatErrors)
+import GhcLib.Transform.Rename
+import GhcLib.Transform.Remove 
 import qualified GHC.Types.Unique.Supply as GHC
--- import Utils.Utils 
--- import Transform.Eta ( etaReduce ) 
 import GhcLib.Transform.Inline  ( inlineBinds, recToLetRec ) 
--- import Transform.Remove ( removeRedEqCheck, removeTyEvidence) 
--- import Transform.Rename
---     ( alpha, 
---     replaceCaseBinds, 
---     replaceHoles, 
---     replacePatErrors ) 
+import GhcLib.Transform.Eta (etaReduce)
+
+import qualified Data.Map.Strict as Map
+
 
 
 preProcess :: GHC.UniqSupply -> GHC.CoreProgram -> GHC.CoreProgram
 -- | Preprocessing transformations
 preProcess identSupply p = replacePatErrors $ replaceHoles identSupply p 
 
-normalise :: String -> GHC.UniqSupply -> GHC.CoreProgram -> GHC.CoreProgram 
+normalise :: String -> GHC.UniqSupply -> GHC.CoreProgram -> (GHC.CoreProgram, Map.Map GHC.Var GHC.Var)
 -- | Normalising transformations
 -- normalise name letRecSupply prog = recToLetRec letRecSupply $ inlineBinds name prog
-normalise name letRecSupply prog = inlineBinds name prog
+normalise exerciseName letRecSupply prog =
+    let inlineTopBinds = inlineBinds exerciseName prog 
+        recusiveToLetRec = recToLetRec letRecSupply inlineTopBinds
+        removeEqCheck = removeRedundantEqCheck recusiveToLetRec
+        etaReduced = etaReduce removeEqCheck
+        alphaRenamed = alpha exerciseName etaReduced
+    in alphaRenamed
 
 
 

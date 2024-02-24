@@ -120,7 +120,7 @@ According to the hoogle page, by adding `Uniplate` instance supports, functions 
 
 --- 
 1. Did Matilda consider using `deBruijnize` when writing her own Similar instance?
-2. What's wrong with the error in `BinderEquality.hs`?
+2. ~~What's wrong with the error in `BinderEquality.hs`~~
 3. Should we consider running `inlineBinds` multiple times?
 4. What's the ideal way to handle impossible case? 
 

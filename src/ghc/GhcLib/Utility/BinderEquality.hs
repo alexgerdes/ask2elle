@@ -2,13 +2,13 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module GhcLib.Utility.BinderEquality where
 
-
+import qualified GHC
 import GHC.Plugins qualified as GHC
 
 import GhcLib.Utility.Bag ()
--- ! wtf, how can this module depends on the following module
-import GhcLib.Transform.Utility
 
+
+-- | A variant of getModSummary presented in the GHC API documentation.
 import qualified GHC.Core.Map.Type as GHC
 
 

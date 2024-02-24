@@ -57,7 +57,9 @@ library ghc-stage
   import:           common-warnings
   import:           common-extensions
   other-modules:
+    GhcLib.Transform.Eta
     GhcLib.Transform.Inline
+    GhcLib.Transform.Remove
     GhcLib.Transform.Rename
     GhcLib.Transform.Utility
     GhcLib.Utility.Bag
@@ -76,6 +78,7 @@ library ghc-stage
   build-depends:
     , base         ^>=4.16.4.0
     , containers
+    , deepseq
     , exceptions   ^>=0.10.4
     , filepath
     , ghc          >=9.2.5     && <9.3

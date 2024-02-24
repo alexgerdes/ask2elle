@@ -1,13 +1,7 @@
 module GhcLib.Utility.Utility(getMaybeSModSummary) where
 
 import GHC qualified
-import GHC.Data.EnumSet qualified as GHCEnumSet
-import GHC.Driver.Monad qualified as GHC
-import GHC.Driver.Session qualified as GHC
-import GHC.IO (unsafePerformIO)
-import GHC.LanguageExtensions.Type qualified as GHC
 import GHC.Plugins qualified as GHC
-import GHC.Utils.Logger qualified as GHCLogger
 
 -- | A variant of getModSummary presented in the GHC API documentation.
 --  

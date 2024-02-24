@@ -73,16 +73,16 @@ insertBind n@(GHC.NonRec v e) bs = map insertB bs -- inline another nonrec
 insertBind (GHC.Rec ls@((v,e):es)) bs = map insertR bs
     where insertR :: GHC.CoreBind -> GHC.CoreBind
           insertR bind@(GHC.NonRec b (GHC.Lam x ex)) = GHC.NonRec b $ GHC.Lam x $
-                                        GHC.Let (GHC.Rec ((uv,e'):es)) (substitution uv v ex)
+                                        GHC.Let (GHC.Rec ((uv,e'):es)) (subsVar uv v ex)
           insertR bind@(GHC.NonRec b ex) = GHC.NonRec b $
-                                         GHC.Let (GHC.Rec ((uv,e'):es)) (substitution uv v ex)
-          insertR bind@(GHC.Rec es') = GHC.Rec $ map (second (substitution uv v)) (es'++ ls)
+                                         GHC.Let (GHC.Rec ((uv,e'):es)) (subsVar uv v ex)
+          insertR bind@(GHC.Rec es') = GHC.Rec $ map (second (subsVar uv v)) (es'++ ls)
           uv :: GHC.Var
           -- | make the global binder local
           uv = GHC.localiseId v
           -- | replace every occurance of the global binder with the local ones
           e' :: GHC.CoreExpr
-          e' = substitution uv v e
+          e' = subsVar uv v e
 insertBind (GHC.Rec []) bs = bs
 
 recToLetRec ::  GHC.UniqSupply -> GHC.CoreProgram -> GHC.CoreProgram
@@ -99,9 +99,9 @@ recToLetRec letRecSupply p = evalState (recToLR p) $ HoleCandidates 0 $ GHC.list
                                           modify $
                                               \s -> s { holeCount = holeCount + 1, holeNameCandicate = tail holeIdCandidates }
                                           let topLevelBinder = fresh holeCandidate v
-                                              e' = substitution topLevelBinder v e
+                                              e' = subsVar topLevelBinder v e
                                               -- ! This is declared, but not used 
-                                              -- ls' = map (substitution topLevelBinder v . snd) ls
+                                              -- ls' = map (subsVar topLevelBinder v . snd) ls
                                               b' = GHC.NonRec v (GHC.Let (GHC.Rec ((topLevelBinder,e'):ls)) (GHC.Var topLevelBinder))
                                           -- bs' <- recToLR bs
                                           -- TODO : Check why bs instead bs' is used here, is it a huristic solution for only 1 recursive problem?

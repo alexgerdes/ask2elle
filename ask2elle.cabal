@@ -54,14 +54,17 @@ common common-local-dependencies
     , Top
 
 library ghc-stage
-  import:           common-warnings
+  -- import:           common-warnings
   import:           common-extensions
   other-modules:
+    GhcLib.Analysis.Analysis
     GhcLib.Transform.Eta
     GhcLib.Transform.Inline
     GhcLib.Transform.Remove
     GhcLib.Transform.Rename
+    GhcLib.Transform.Transform
     GhcLib.Transform.Utility
+    GhcLib.Transform.Fusion 
     GhcLib.Utility.Bag
     GhcLib.Utility.BinderEquality
     GhcLib.Utility.Flags
@@ -71,9 +74,8 @@ library ghc-stage
 
   -- GhcLib.GHC.Driver.Make
   exposed-modules:
-    GhcLib.Compiler.Compiler
-    GhcLib.Simplifier.Simplifier
-    GhcLib.Transform.Transform
+    GhcLib.Compile.Compile
+    GhcLib.Compile.ToCore
 
   build-depends:
     , base         ^>=4.16.4.0
@@ -88,13 +90,14 @@ library ghc-stage
     , mtl
     , process
     , text         ^>=2.0
+    , time
     , uniplate
 
   default-language: Haskell2010
   hs-source-dirs:   src/ghc
 
 library helium-stage
-  import:           common-warnings
+  -- import:           common-warnings
   import:           common-extensions
   import:           common-local-dependencies
   other-modules:    Helium.Utility.Instances
@@ -116,7 +119,7 @@ library helium-stage
   default-language: Haskell2010
 
 executable ask2elle
-  import:           common-warnings
+  -- import:           common-warnings
   import:           common-extensions
   main-is:          Main.hs
   build-depends:
@@ -124,6 +127,7 @@ executable ask2elle
     , bytestring
     , ghc-stage
     , helium-stage
+    , mtl
     , text          ^>=2.0
 
   -- we can update text to 2.1 if the version constraint text , within parsec from Top, is updated.

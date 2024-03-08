@@ -1,4 +1,4 @@
-module GhcLib.Simplifier.Simplifier (test) where
+module GhcLib.Compile.ToCore  where
 
 import GHC qualified
 import GHC.Data.Bag qualified as GHC
@@ -22,7 +22,8 @@ import GHC.Unit.Module.Graph qualified as GHC
 import GHC.Utils.Ppr qualified as GHC
 import GHC.Plugins qualified as GHC 
 import GHC.Core.Opt.Pipeline qualified as GHC
-
+import GHC.Data.StringBuffer qualified as GHC
+import GHC.Unit.Module.Name qualified as GHC 
 
 import Control.Monad.Catch
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
@@ -31,11 +32,12 @@ import Control.Monad.Reader
 import Data.Either
 import Data.IORef (IORef, newIORef)
 import Data.Maybe
-import Data.List
+import Data.Map qualified as Map
 import Data.String (IsString (fromString))
 import System.FilePath (takeBaseName)
 import System.Process (readProcess)
 import System.IO (stdout)
+import Data.Time.Clock
 
 import GhcLib.Utility.Bag ()
 import GhcLib.Utility.Flags
@@ -46,31 +48,38 @@ import GhcLib.Utility.ShowCore
 import Control.Monad.RWS (MonadState(put))
 import Debug.Trace (traceM)
 import GhcLib.Transform.Inline (recToLetRec)
+import GhcLib.Transform.Remove (removeTyEvidence)
 
 
-
-data SimplifyOption = SimplifyOption
-    { getSimplifyTargetPath :: FilePath
-    , getSimplifyTargetName :: String
+data ToCoreOption = ToCoreOption
+    { getStudentSolution :: GHC.StringBuffer 
+    , getStudentExerciseName :: String
     }
     deriving stock (Show)
-data SimplifyingError = FailedUnloading | FailedLoading | NotInsideModuleGraph String | ParsingError GHC.ErrorMessages | TypecheckingError GHC.ErrorMessages 
+
+data ToCoreOutput = ToCoreOutput 
+    { resultCoreProgram :: GHC.CoreProgram
+    , parsedModule :: GHC.ParsedSource
+    , alphaRenamingMapping :: Map.Map GHC.Var GHC.Var
+    , studentExerciseName :: String}
+
+    
+data ToCoreError = FailedUnloading | FailedLoading | NotInsideModuleGraph String | ParsingError GHC.ErrorMessages | TypecheckingError GHC.ErrorMessages 
     deriving stock (Show)
 
--- data SimplifyingResult = ParsingError GHC.ErrorMessages | TypeCheckingError | DesugaringError
 
-instance Exception SimplifyingError
+instance Exception ToCoreError
 
--- newtype Simplify a = MkSimplify {runSimplify :: GHC.GhcT (ExceptT SimplifyingError IO) a}
+-- newtype ToCore a = MkToCore {runToCore :: GHC.GhcT (ExceptT ToCoreError IO) a}
 --     deriving newtype (Functor, Applicative, Monad, MonadIO,GHC.HasDynFlags, GHCLogger.HasLogger)
---     deriving (MonadThrow, MonadCatch, MonadMask) via (ReaderT GHC.Session (ExceptT SimplifyingError IO))
+--     deriving (MonadThrow, MonadCatch, MonadMask) via (ReaderT GHC.Session (ExceptT ToCoreError IO))
 --     deriving newtype (GHC.GhcMonad)
 
--- newtype Wrapper a = MkWrapper {runWrapper :: ReaderT SimplifyOption Simplify a }
+-- newtype Wrapper a = MkWrapper {runWrapper :: ReaderT ToCoreOption ToCore a }
 
-newtype Simplify a = MkSimplify {runSimplify :: GHC.GhcT (ReaderT SimplifyOption (ExceptT SimplifyingError IO)) a}
+newtype ToCore a = MkToCore {runToCore :: GHC.GhcT (ReaderT ToCoreOption (ExceptT ToCoreError IO)) a}
     deriving newtype (Functor, Applicative, Monad, MonadIO, GHC.HasDynFlags, GHCLogger.HasLogger)
-    deriving (MonadThrow, MonadCatch, MonadMask) via (ReaderT GHC.Session (ReaderT SimplifyOption (ExceptT SimplifyingError IO)))
+    deriving (MonadThrow, MonadCatch, MonadMask) via (ReaderT GHC.Session (ReaderT ToCoreOption (ExceptT ToCoreError IO)))
     deriving newtype (GHC.GhcMonad)
 
 setExtensionFlag' :: GHC.Extension -> GHC.DynFlags -> GHC.DynFlags
@@ -111,7 +120,7 @@ eopt_set :: GHC.DynFlags -> GHC.Extension -> GHC.DynFlags
 eopt_set df ext = df{GHC.extensionFlags = GHCEnumSet.insert ext (GHC.extensionFlags df)}
 
 
-setFlags :: Bool -> [GHC.GeneralFlag] -> Simplify ()
+setFlags :: Bool -> [GHC.GeneralFlag] -> ToCore ()
 
 -- | Set extra dynamic flags(flags from the command line) along with default always-on flags
 setFlags b flags = do
@@ -159,7 +168,7 @@ setFlags b flags = do
     -- mapM_ (\flag -> liftIO $ print $ show flag) $ GHCEnumSet.toList $ GHCEnumSet.difference currFatalFlags existingFatalFlags
 
 -- | ghc loads the target file
-loadWithoutPlugins :: GHC.Target -> Simplify ()
+loadWithoutPlugins :: GHC.Target -> ToCore ()
 loadWithoutPlugins targetFile = do
     -- first unload all the files (like GHCi :load does)
     GHC.setTargets []
@@ -170,14 +179,15 @@ loadWithoutPlugins targetFile = do
     -- Nothing
     -- GHC.setSessionDynFlags dflags{GHC.outputFile_ = Nothing}
     GHC.setTargets [targetFile]
-    hsFile <- liftS $ asks getSimplifyTargetName
+    hsFile <- liftToCore $ asks getStudentExerciseName
+    -- * The following only perform dependency analysis 
     maybeLoaded <- GHC.handleSourceError (pure . Left . GHC.srcErrorMessages) (Right <$>  GHC.depanalE [] False   )
     guardS (isRight maybeLoaded) (fromString $ "Error : Failed to parse " ++ hsFile) (ParsingError $ fromLeft GHC.emptyBag maybeLoaded)
     -- guardS (GHC.succeeded $ fromRight GHC.Succeeded maybeLoaded) (fromString $ "Error : Failed to load target : " ++ targetFP) FailedLoading
 -- >>> take 10 [x | x <- [1..], odd x]
 
 
--- customizedLoad' :: Maybe GHC.Messager -> GHC.ModuleGraph -> Simplify ()
+-- customizedLoad' :: Maybe GHC.Messager -> GHC.ModuleGraph -> ToCore ()
 -- customizedLoad' mHscMessage mod_graph = do
 --     GHC.modifySession $ \hsc_env -> hsc_env {GHC.hsc_mod_graph = mod_graph}
 --     -- GHC.guessOutputFile -- ? not sure we need this function
@@ -269,35 +279,33 @@ loadWithoutPlugins targetFile = do
 
 --     let upsweep_fn | n_jobs > 1 = parUpsweep n_jobs
 --                    | otherwise  = upsweep
-
-
-
-
---     pure ()
 --     pure ()
 
 
 
-initEnv :: Bool -> [GHC.GeneralFlag] -> Simplify (IORef [Warning])
+
+initEnv :: Bool -> [GHC.GeneralFlag] -> ToCore (IORef [Warning])
 initEnv keepDefaultFlags flags = do
-    hsFilePath <- liftS $ asks getSimplifyTargetPath
-    
+    solution <- liftToCore $ asks getStudentSolution
+    exerciseName <- liftToCore $ asks getStudentExerciseName
     setFlags keepDefaultFlags flags
-    
     -- logger <- GHC.getLogger
     -- ! Not sure whether we need this in the future
     ref <- liftIO (newIORef [])
     -- in case of logging, also write it to the IORef
     GHC.pushLogHookM (writeWarnings ref)
-    target <- GHC.guessTarget hsFilePath Nothing
+    -- target <- GHC.guessTarget hsFilePath Nothing
+    -- (Target (TargetFile str (Just phase)) True Nothing)
+    complieTime <- liftIO  getCurrentTime
+    let target = GHC.Target (GHC.TargetFile "NeverExistedLocalFile.hs" Nothing) True $ Just (solution,complieTime)
     loadWithoutPlugins target
     return ref
 
--- toDesugar' :: Bool -> [GHC.GeneralFlag] -> Simplify (GHC.ModGuts, GHC.ParsedSource, IORef [Warning])
-toDesugar' :: Bool -> [GHC.GeneralFlag] -> Simplify (GHC.ModGuts, GHC.ParsedSource)
--- | Compile a file to the desugar pass + simple optimiser and return Modguts and warnings
-toDesugar' keepExistingFlags flags = do
-    hsFile <- liftS $ asks getSimplifyTargetName
+
+desugarToCore :: Bool -> [GHC.GeneralFlag] -> ToCore (GHC.ModGuts, GHC.ParsedSource)
+-- | Compile a haskell file to the desugar pass + simple optimiser and return Modguts and warnings
+desugarToCore keepExistingFlags flags = do
+    hsFile <- liftToCore $ asks getStudentExerciseName
     ref <- initEnv keepExistingFlags flags
     -- * Check target exists in the module graph
     modSum <- getMaybeSModSummary $ GHC.mkModuleName hsFile
@@ -322,27 +330,19 @@ toDesugar' keepExistingFlags flags = do
     return (coreMod, GHC.pm_parsed_source safeParseResult)
 
 
-toDesugar :: Simplify (GHC.CoreProgram, GHC.ParsedSource)
--- | Desugar and return coreprogram and warnings
-toDesugar = do
-    (mgCore, parsedSourceCode) <- toDesugar' False (holeFlags ++ genFlags)
-
+desugarPreprocess :: ToCore (GHC.CoreProgram, GHC.ParsedSource)
+-- |  a haskell file -> desugar pass(including simple optimiser) -> handling type hole error -> normalization 
+desugarPreprocess = do
+    (mgCore, parsedSourceCode) <- desugarToCore False (holeFlags ++ genFlags)
     uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
     let prog = preProcess uniqHoleSupply $ GHC.mg_binds mgCore
-    uniqTopLevelLetRecSupply <- liftIO $ GHC.mkSplitUniqSupply 'R'
-    -- let inlineProg = recToLetRec uniqTopLevelLetRecSupply prog
-    fnName <- liftS $ asks getSimplifyTargetName
-    let normalizedProg = normalise fnName uniqTopLevelLetRecSupply prog 
-    liftIO $ putStrLn $ show normalizedProg
-    liftIO $ putStrLn "\n------------------------------------"
-    liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr normalizedProg)
     return (prog, parsedSourceCode)
 
 
-toSimplify :: Simplify (GHC.CoreProgram, GHC.ParsedSource)
--- | Replace holes and run simplifier
-toSimplify = do
-  (mgCore, psrc) <- toDesugar' True (holeFlags ++ genFlags ++ simplFlags)
+desugarPreprocessSimplification :: ToCore (GHC.CoreProgram, GHC.ParsedSource)
+-- |  a haskell file -> desugar pass(including simple optimiser) -> handling type hole error -> core-to-core simplification
+desugarPreprocessSimplification = do
+  (mgCore, psrc) <- desugarToCore True (holeFlags ++ genFlags ++ simplFlags)
   env <- GHC.getSession
   uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
   let prog = preProcess uniqHoleSupply (GHC.mg_binds mgCore)
@@ -351,43 +351,65 @@ toSimplify = do
   return (GHC.mg_binds mgSimpl, psrc)
 
 
-
+desugarPreprocessNormalize :: ToCore (GHC.CoreProgram, GHC.ParsedSource, Map.Map GHC.Var GHC.Var)
+-- |  a haskell file -> desugar pass(including simple optimiser) -> handling type hole error -> normalization 
+desugarPreprocessNormalize = do
+    (mgCore, parsedSourceCode) <- desugarToCore False (holeFlags ++ genFlags)
+    uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
+    let prog = preProcess uniqHoleSupply $ GHC.mg_binds mgCore
+    uniqTopLevelLetRecSupply <- liftIO $ GHC.mkSplitUniqSupply 'R'
+    -- let inlineProg = recToLetRec uniqTopLevelLetRecSupply prog
+    fnName <- liftToCore $ asks getStudentExerciseName
+    let (normalizedProg, alphaRenamingMapping) = normalise fnName uniqTopLevelLetRecSupply prog 
+    liftIO $ putStrLn $ show normalizedProg
+    liftIO $ putStrLn "\n------------------------------------"
+    liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr normalizedProg)
+    let removedTypeEvidence = removeTyEvidence normalizedProg
+    liftIO $ putStrLn "\n--------------Removed Evidence---------------------"
+    liftIO $ putStrLn $ show removedTypeEvidence
+    liftIO $ putStrLn "\n------------------------------------"
+    liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr removedTypeEvidence)
+    return (prog, parsedSourceCode, alphaRenamingMapping)
+    
 libDirPath :: IO FilePath
 libDirPath = init <$> readProcess "ghc" ["--print-libdir"] ""
 
--- test' :: ExceptT SimplifyingError IO ()
-test' :: ReaderT SimplifyOption (ExceptT SimplifyingError IO) ()
+-- test' :: ExceptT ToCoreError IO ()
+test' :: ReaderT ToCoreOption (ExceptT ToCoreError IO) ()
 test' = do
     libDirPath' <- liftIO libDirPath
     logging <- GHC.defaultErrorHandler
         GHC.defaultFatalMessager
         GHC.defaultFlushOut
         $ GHC.runGhcT (Just libDirPath')
-        $ runSimplify
+        $ runToCore
         $ do
-            _ <- toDesugar
+            _ <- desugarPreprocessNormalize
             let test = 0
             pure ()
     pure ()
 
-test :: IO ()
-test = do
-    let target = "./ghcTestCases/Test.hs"
-    result <- runExceptT (runReaderT test' $ SimplifyOption target (takeBaseName target))
-    case result of
-        Left e -> print e
-        Right _ -> pure ()
+-- test :: IO ()
+-- test = do
+--     let target = "./ghcTestCases/Test.hs"
+--     result <- runExceptT (runReaderT test' $ ToCoreOption target (takeBaseName target))
+--     case result of
+--         Left e -> print e
+--         Right _ -> pure ()
+
+
+
 
 -- | Error Handling when unintended things happen, like when loading ill-formed haskell file, mainly IO actions.
 -- | Hence, we dont have error information like reasons for failing, serverity and source location
 -- | SDoc implements IsString typeclass, we can pass string literal to the function
-guardS :: Bool -> GHC.SDoc -> SimplifyingError -> Simplify ()
+guardS :: Bool -> GHC.SDoc -> ToCoreError -> ToCore ()
 guardS True _ _ = pure ()
 guardS False sdoc errorType = do
     dynflags <- GHC.getDynFlags
     liftIO $ GHCLogger.defaultLogAction dynflags GHC.NoReason GHC.SevInfo GHC.noSrcSpan sdoc
-    liftS $ throwError errorType
+    liftToCore $ throwError errorType
 
-liftS :: ReaderT SimplifyOption (ExceptT SimplifyingError IO) a -> Simplify a
-liftS f = MkSimplify $ GHC.liftGhcT f
+liftToCore :: ReaderT ToCoreOption (ExceptT ToCoreError IO) a -> ToCore a
+liftToCore f = MkToCore $ GHC.liftGhcT f
 

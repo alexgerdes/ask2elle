@@ -19,11 +19,11 @@ import Data.Maybe (fromJust)
 import Data.Data 
 
 import GhcLib.Transform.Utility
-import Debug.Trace (trace)
+
 
 removeRedundantEqCheck :: GHC.CoreProgram -> GHC.CoreProgram
 -- | Remove redundant equality checks
-removeRedundantEqCheck = trace "lllssskkk" $ transformBi remEqCheck
+removeRedundantEqCheck = transformBi remEqCheck
     where remEqCheck :: GHC.CoreExpr ->  GHC.CoreExpr
           -- | remove redundant boolean checks, e.g. removeRedEqCheck
           -- if x == y then true else false ==> x == y 
@@ -67,3 +67,18 @@ isNegBoolToBool (GHC.Alt (GHC.DataAlt d) [] (GHC.Var v)) = (dstr == "False" &&
          where dstr = GHCOcc.getOccString d
                vstr = GHCOcc.getOccString v
 isNegBoolToBool _                            = False
+
+
+removeTyEvidence :: GHC.CoreProgram -> GHC.CoreProgram
+-- | Remove types and type evidence from a Coreprogram
+removeTyEvidence = transformBi removeTy
+
+    where removeTy = \case
+            (GHC.Lam v e)        | GHC.isEvVar v || GHC.isTyVar v -> e
+            (GHC.App f (GHC.Var v))  | GHC.isEvVar v || GHC.isTyVar v -> f
+            (GHC.App f (GHC.Type _t)) -> f
+            (GHC.Let b e) | isEvBind b -> e
+            e -> e
+          isEvBind (GHC.NonRec bi e) = isEvOrTyVar bi && isEvOrTyExp e
+          isEvBind (GHC.Rec es) = all (isEvOrTyVar . fst) es && all (isEvOrTyExp . snd) es
+

@@ -12,7 +12,7 @@ import qualified GHC.Plugins as GHC
 import qualified GHC.Core.TyCo.Rep as GHC
 import qualified GHC.Types.Name.Occurrence as Occ
 import qualified GHC.Utils.Encoding as GHC
-
+import qualified GHC.Core.Predicate as GHC
 -- General imports 
 import Data.Generics.Uniplate.Data
 import Control.Monad ( void, replicateM_ )
@@ -23,7 +23,7 @@ import Data.Void (Void)
 import GHC.Base (assert)
 import Data.Foldable (Foldable(foldl'))
 import Data.Bifunctor (Bifunctor(first, second))
-import Data.Data (Data)
+
 
 
 data HoleCandidates = HoleCandidates {
@@ -141,6 +141,17 @@ isWild v = "wild" == GHC.getOccString v
 isTyConApp :: GHC.Type -> Bool
 isTyConApp (GHC.TyConApp _ _) = True
 isTyConApp _ = False
+
+isEvOrTyVar :: GHC.Var -> Bool
+isEvOrTyVar v = GHC.isTyVar v || GHC.isEvVar v
+
+isEvOrTyExp :: GHC.CoreExpr -> Bool
+
+-- | Is type or type/evidence variable
+isEvOrTyExp e = case e of
+    (GHC.Var v) -> isEvOrTyVar v
+    (GHC.Type _t) -> True
+    _ -> False
 
 
 makeLocal :: GHC.Var -> GHC.Var

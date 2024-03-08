@@ -30,6 +30,26 @@ test x = case x of
         (App 
           (App (Var Just) (Type (TyConApp Int []))) 
           (Tick src<ghcTestCases/Test.hs:7:20> (Var y_auG))))
-    ]))),NonRec $trModule (App (App (Var Module) (App (Var TrNameS) (Lit main))) (App (Var TrNameS) (Lit Test)))]
+    ]))),
+    
+    NonRec $trModule (App (App (Var Module) (App (Var TrNameS) (Lit main))) (App (Var TrNameS) (Lit Test)))]
 ```
+After removing evidence 
+
+```haskell
+[NonRec b20_rgt 
+  (Lam l20_auF 
+    (Tick src<ghcTestCases/Test.hs:(6,1)-(7,20)> 
+      (Case 
+        (Tick src<ghcTestCases/Test.hs:6:15> (Var l20_auF)) 
+        cb20_00 
+        (TyConApp Maybe [TyConApp Int []]) 
+        [Alt DEFAULT [] (Var patError_0e),
+         Alt (DataAlt Just) [v20_auG]  
+          (Tick src<ghcTestCases/Test.hs:7:15-20> 
+            (App 
+              (Var Just) 
+              (Tick src<ghcTestCases/Test.hs:7:20> (Var v20_auG))))])))]
+```
+
 

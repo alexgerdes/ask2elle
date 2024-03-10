@@ -8,6 +8,7 @@ import Helium.Helium
 import Helium.Utility.Compile (AskelleOptions (..), askelleDefaultOptions)
 import Helium.Utility.PrettyPrinter
 import GhcLib.Compile.Compile (compileToCore)
+import GhcLib.Analysis.Analysis (test)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 
 -- main :: IO ()
@@ -21,11 +22,14 @@ import Control.Monad.Except (ExceptT, runExceptT, throwError)
 --         Right a -> T.putStrLn $ ppModule a
 
 
+-- main :: IO ()
+-- main = do 
+--   let path = "./ghcTestCases/Test.hs"
+--   code <- readFile path 
+--   result <- runExceptT $ compileToCore "Test" code
+--   case result of
+--     Left err -> print err
+--     Right a -> print "yikes!"
+
 main :: IO ()
-main = do 
-  let path = "./ghcTestCases/Test.hs"
-  code <- readFile path 
-  result <- runExceptT $ compileToCore "Test" code
-  case result of
-    Left err -> print err
-    Right a -> print "yikes!"
+main = test 

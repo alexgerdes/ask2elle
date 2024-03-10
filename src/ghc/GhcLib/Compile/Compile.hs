@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+
 module GhcLib.Compile.Compile where
 
 
@@ -21,11 +21,9 @@ import GHC.Unit.Home.ModInfo qualified as GHC
 import GHC.Linker.Types qualified as GHC
 import GHC.Runtime.Interpreter qualified as GHC
 import GHC.Conc qualified as GHC
-import GHC.Unit.Module.Graph qualified as GHC
 import GHC.Utils.Ppr qualified as GHC
-import GHC.Plugins qualified as GHC
 import GHC.Core.Opt.Pipeline qualified as GHC
-import GHC.Data.StringBuffer qualified as GHC 
+import GHC.Data.StringBuffer qualified as GHC
 
 import Control.Monad.Catch
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
@@ -50,14 +48,21 @@ import GhcLib.Compile.ToCore
 import GhcLib.Transform.Inline (recToLetRec)
 import GhcLib.Transform.Remove
 import GhcLib.Transform.Rename (alpha)
-import GhcLib.Transform.Fusion 
+import GhcLib.Transform.Fusion
 
+{- | The type of the function that compiles a program to Core. 
+   | It takes an exercise name and a solution, both have the type of String and passed to the ReaderT as configuration.
+-}
+type CompileFunction = ReaderT ToCoreOption (ExceptT ToCoreError IO) ToCoreOutput 
 
--- compileToCore :: ExerciseName -> FilePath ->  IO ToCoreOutput
-compileToCore :: String -> String -> ExceptT ToCoreError IO ToCoreOutput
-compileToCore exerciseName inputSolution = do
+{- | The entry point for compilation to Core. 
+   | This function takes an exercise name and a solution, both have the type of String.AskelleOptions
+-}
+compileToCore :: String -> String -> CompileFunction -> ExceptT ToCoreError IO ToCoreOutput
+compileToCore exerciseName inputSolution f = do
     solution <- liftIO $ GHC.appendStringBuffers (GHC.stringToStringBuffer inputSolution) fusionRule
-    runReaderT compDesNormalised $ ToCoreOption solution exerciseName
+    runReaderT f $ ToCoreOption solution exerciseName
+
 
 compSimplNormalised :: ReaderT ToCoreOption (ExceptT ToCoreError IO) ToCoreOutput
 -- | Desugar, preprocess and simplify the program, then normalise it

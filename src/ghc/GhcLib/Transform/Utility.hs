@@ -111,7 +111,6 @@ isPatErrMsg _ = False
 getPatErr :: GHC.CoreExpr -> Maybe GHC.Var
 getPatErr = getVarFromName "patError"
 
-
 getTypErr :: GHC.CoreExpr -> Maybe GHC.Var
 getTypErr = getVarFromName "typeError"
 
@@ -146,13 +145,32 @@ isEvOrTyVar :: GHC.Var -> Bool
 isEvOrTyVar v = GHC.isTyVar v || GHC.isEvVar v
 
 isEvOrTyExp :: GHC.CoreExpr -> Bool
-
 -- | Is type or type/evidence variable
 isEvOrTyExp e = case e of
     (GHC.Var v) -> isEvOrTyVar v
     (GHC.Type _t) -> True
     _ -> False
 
+isCaseExpr :: GHC.CoreExpr -> Bool
+isCaseExpr (GHC.Case{}) = True
+isCaseExpr (GHC.Tick _ e) = isCaseExpr e
+isCaseExpr _ = False
+
+isTrModuleVar :: GHC.Var -> Bool
+isTrModuleVar v = "$trModule" == take 9 (GHC.getOccString v)
+
+getAltExp :: GHC.Alt GHC.Var -> GHC.CoreExpr
+getAltExp (GHC.Alt _ _ (GHC.Tick _ e)) = e
+getAltExp (GHC.Alt _ _ e) = e
+
+
+isHoleVar :: GHC.Var -> Bool
+isHoleVar v = take 4 (GHC.getOccString v) == "hole" -- * Original Haskell Core language shouldn't contain any variable name starting with "hole". This is derived from previous transformation performed by us.
+
+isHoleVarExpr :: GHC.CoreExpr -> Bool
+isHoleVarExpr (GHC.Var v) = isHoleVar v
+isHoleVarExpr (GHC.Tick _ e) = isHoleVarExpr e -- any expression might be wrapped in ticks
+isHoleVarExpr _ = False
 
 makeLocal :: GHC.Var -> GHC.Var
   -- | Invariant: in the call site, the input variable should always to a computational related value

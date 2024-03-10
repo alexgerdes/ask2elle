@@ -57,14 +57,16 @@ library ghc-stage
   -- import:           common-warnings
   import:           common-extensions
   other-modules:
-    GhcLib.Analysis.Analysis
+    GhcLib.Analysis.Feedback
+    GhcLib.Analysis.SimilarInstance
+    GhcLib.Compile.ToCore
     GhcLib.Transform.Eta
+    GhcLib.Transform.Fusion
     GhcLib.Transform.Inline
     GhcLib.Transform.Remove
     GhcLib.Transform.Rename
     GhcLib.Transform.Transform
     GhcLib.Transform.Utility
-    GhcLib.Transform.Fusion 
     GhcLib.Utility.Bag
     GhcLib.Utility.BinderEquality
     GhcLib.Utility.Flags
@@ -74,13 +76,15 @@ library ghc-stage
 
   -- GhcLib.GHC.Driver.Make
   exposed-modules:
+    GhcLib.Analysis.Analysis
     GhcLib.Compile.Compile
-    GhcLib.Compile.ToCore
+    
 
   build-depends:
     , base         ^>=4.16.4.0
     , containers
     , deepseq
+    , directory
     , exceptions   ^>=0.10.4
     , filepath
     , ghc          >=9.2.5     && <9.3

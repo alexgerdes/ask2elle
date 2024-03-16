@@ -13,10 +13,10 @@ import qualified GHC.Core.TyCo.Rep as GHC
 import qualified GHC.Types.Name.Occurrence as Occ
 import qualified GHC.Utils.Encoding as GHC
 import qualified GHC.Core.Predicate as GHC
+
 -- General imports 
 import Data.Generics.Uniplate.Data
 import Control.Monad ( void, replicateM_ )
-
 import qualified Text.Megaparsec as Parser
 import qualified Text.Megaparsec.Char as Parser
 import Data.Void (Void)

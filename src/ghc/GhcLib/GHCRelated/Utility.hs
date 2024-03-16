@@ -1,4 +1,4 @@
-module GhcLib.Utility.Utility(getMaybeSModSummary) where
+module GhcLib.GHCRelated.Utility(getMaybeSModSummary) where
 
 import GHC qualified
 import GHC.Plugins qualified as GHC
@@ -20,3 +20,4 @@ getMaybeSModSummary moduleName = do
      [] -> pure Nothing
      [ms] -> pure $ Just ms 
      _ -> pure Nothing
+

@@ -3,7 +3,7 @@
 
 {-# HLINT ignore "Redundant lambda" #-}
 
-module GhcLib.Utility.Warning (Warning, writeWarnings) where
+module GhcLib.GHCRelated.Warning (Warning, writeWarnings) where
 
 import Data.IORef (IORef, modifyIORef)
 import GHC qualified

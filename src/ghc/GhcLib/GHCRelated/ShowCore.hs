@@ -6,7 +6,7 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module GhcLib.Utility.ShowCore where
+module GhcLib.GHCRelated.ShowCore where
 -- | Module containing Show instances for GHC types
 --  CoreSyn and HsSyn 
 

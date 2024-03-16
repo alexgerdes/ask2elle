@@ -38,12 +38,12 @@ import System.FilePath (takeBaseName)
 import System.Process (readProcess)
 import System.IO (stdout, openFile, IOMode (..), hPutStrLn, hFlush, hClose)
 
-import GhcLib.Utility.Bag ()
+import GhcLib.GHCRelated.Bag ()
 import GhcLib.Utility.Flags
-import GhcLib.Utility.Utility
-import GhcLib.Utility.Warning
+import GhcLib.GHCRelated.Utility
+import GhcLib.GHCRelated.Warning
 import GhcLib.Transform.Transform
-import GhcLib.Utility.ShowCore
+import GhcLib.GHCRelated.ShowCore
 import GhcLib.Compile.ToCore
 import GhcLib.Transform.Inline (recToLetRec)
 import GhcLib.Transform.Remove

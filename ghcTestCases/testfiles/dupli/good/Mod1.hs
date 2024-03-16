@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wno-typed-holes #-}
+-- {-# OPTIONS_GHC -Wno-typed-holes #-}
 
 
 module Mod1 where 

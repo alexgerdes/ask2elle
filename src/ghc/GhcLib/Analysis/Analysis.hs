@@ -40,12 +40,12 @@ import System.FilePath
 import System.IO.Unsafe
 import Data.Char (isLetter)
 
-import GhcLib.Utility.Bag ()
+import GhcLib.GHCRelated.Bag ()
 import GhcLib.Utility.Flags
-import GhcLib.Utility.Utility
-import GhcLib.Utility.Warning
+import GhcLib.GHCRelated.Utility
+import GhcLib.GHCRelated.Warning
 import GhcLib.Transform.Transform
-import GhcLib.Utility.ShowCore
+import GhcLib.GHCRelated.ShowCore
 import GhcLib.Compile.ToCore
 import GhcLib.Transform.Inline (recToLetRec)
 import GhcLib.Transform.Remove
@@ -119,9 +119,9 @@ comparePrograms compileFun expectedResult (stdModuleName,studentSolution) (model
 
 test :: IO () 
 test = do 
-  stdSol <- readFile "./ghcTestCases/testfiles/dupli/good/Test1.hs"
-  modelSol <-readFile "./ghcTestCases/testfiles/dupli/good/Mod1.hs"
-  let stdModuleName = "Test1"
-      modelModuleName = "Mod1"
+  stdSol <- readFile "./ghcTestCases/testfiles/dupli/good/Test3.hs"
+  modelSol <-readFile "./ghcTestCases/testfiles/dupli/good/Mod3.hs"
+  let stdModuleName = "Test3"
+      modelModuleName = "Mod3"
   compOutput <- comparePrograms compSimplNormalised True (stdModuleName,stdSol) (modelModuleName,modelSol)
   print $ show compOutput

@@ -12,6 +12,7 @@ import qualified GHC.Types.Id.Info as GHC
 import qualified GHC.Core.Opt.Arity as GHC 
 import qualified GHC.Types.Name as GHCOcc 
 import qualified GHC.Types.SrcLoc as GHC 
+
 import Control.Monad.State
 import Data.Generics.Uniplate.Data 
 import qualified Data.Map as Map 

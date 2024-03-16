@@ -39,12 +39,12 @@ import System.Process (readProcess)
 import System.IO (stdout)
 import Data.Time.Clock
 
-import GhcLib.Utility.Bag ()
+import GhcLib.GHCRelated.Bag ()
 import GhcLib.Utility.Flags
-import GhcLib.Utility.Utility
-import GhcLib.Utility.Warning
+import GhcLib.GHCRelated.Utility
+import GhcLib.GHCRelated.Warning
 import GhcLib.Transform.Transform
-import GhcLib.Utility.ShowCore
+import GhcLib.GHCRelated.ShowCore
 import Control.Monad.RWS (MonadState(put))
 import Debug.Trace (traceM)
 import GhcLib.Transform.Inline (recToLetRec)

@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module GhcLib.Utility.Bag() where
+module GhcLib.GHCRelated.Bag() where
 
 import GHC.Data.Bag qualified as GHC
 

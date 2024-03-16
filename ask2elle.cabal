@@ -60,6 +60,11 @@ library ghc-stage
     GhcLib.Analysis.Feedback
     GhcLib.Analysis.SimilarInstance
     GhcLib.Compile.ToCore
+    GhcLib.GHCRelated.Bag
+    GhcLib.GHCRelated.BinderEquality
+    GhcLib.GHCRelated.ShowCore
+    GhcLib.GHCRelated.Utility
+    GhcLib.GHCRelated.Warning
     GhcLib.Transform.Eta
     GhcLib.Transform.Fusion
     GhcLib.Transform.Inline
@@ -67,18 +72,11 @@ library ghc-stage
     GhcLib.Transform.Rename
     GhcLib.Transform.Transform
     GhcLib.Transform.Utility
-    GhcLib.Utility.Bag
-    GhcLib.Utility.BinderEquality
     GhcLib.Utility.Flags
-    GhcLib.Utility.ShowCore
-    GhcLib.Utility.Utility
-    GhcLib.Utility.Warning
 
-  -- GhcLib.GHC.Driver.Make
   exposed-modules:
     GhcLib.Analysis.Analysis
     GhcLib.Compile.Compile
-    
 
   build-depends:
     , base         ^>=4.16.4.0

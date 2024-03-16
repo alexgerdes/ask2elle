@@ -15,7 +15,7 @@ import GHC.Types.Name (getOccString, occNameString)
 import GHC.Data.FastString (fsLit)
 
 import Debug.Trace ( trace )
-import GhcLib.Utility.ShowCore
+import GhcLib.GHCRelated.ShowCore
 import GHC.Core.TyCon (TyCon)
 import Control.Monad (when)
 import Data.Maybe (isNothing)

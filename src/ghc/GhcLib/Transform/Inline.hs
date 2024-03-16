@@ -10,11 +10,11 @@ import Control.Monad.State
 import Data.Generics.Uniplate.Data
 import Data.List ( (\\) )
 
-import GhcLib.Utility.Bag ()
+import GhcLib.GHCRelated.Bag ()
 import GhcLib.Transform.Utility
 import Data.Bifunctor (Bifunctor(second))
 import qualified GHC.Core.Map.Type as GHC
-import GhcLib.Utility.BinderEquality
+import GhcLib.GHCRelated.BinderEquality
 
 
 {-|

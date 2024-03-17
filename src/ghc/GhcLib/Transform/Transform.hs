@@ -23,10 +23,10 @@ normalise :: String -> GHC.UniqSupply -> GHC.CoreProgram -> (GHC.CoreProgram, Ma
 normalise exerciseName letRecSupply prog =
     let inlineTopBinds = inlineBinds exerciseName prog 
         recusiveToLetRec = recToLetRec letRecSupply inlineTopBinds
-        removeEqCheck = removeRedundantEqCheck recusiveToLetRec
-        etaReduced = etaReduce removeEqCheck
-        alphaRenamed = alpha exerciseName etaReduced
-    in alphaRenamed
+        -- removeEqCheck = removeRedundantEqCheck recusiveToLetRec
+        -- etaReduced = etaReduce removeEqCheck
+        alphaRenamed = alpha exerciseName recusiveToLetRec
+    in (recusiveToLetRec, Map.empty)
 
 
 

@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -Wno-typed-holes #-}
-module Mod7 where
-    
+module Mod10 where 
+
+
 dupli :: [a] -> [a]
-dupli = concatMap (\x -> [x,x])
+dupli = concatMap (replicate 2) 
+

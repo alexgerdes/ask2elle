@@ -14,3 +14,4 @@ fusionRule = GHC.stringToStringBuffer $ unlines
               "{-# RULES \"concatmap/concatMap\"   forall f xs.  concat (map f xs)  = concatMap f xs #-}",
               "{-# RULES \"concat.map/concatMap\" forall f.  concat . map f = concatMap f #-}",
               "{-# RULES \"equal/null\" forall xs. xs == [] = null xs #-}"]
+

@@ -79,19 +79,20 @@ library ghc-stage
     GhcLib.Compile.Compile
 
   build-depends:
-    , base         ^>=4.16.4.0
+    , base           ^>=4.16.4.0
     , containers
     , deepseq
     , directory
-    , exceptions   ^>=0.10.4
+    , exceptions     ^>=0.10.4
     , filepath
-    , ghc          >=9.2.5     && <9.3
+    , ghc            >=9.2.5     && <9.3
     , ghc-boot
     , ghc-boot-th
     , megaparsec
     , mtl
+    , pretty-simple
     , process
-    , text         ^>=2.0
+    , text           ^>=2.0
     , time
     , uniplate
 

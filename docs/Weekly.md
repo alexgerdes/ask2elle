@@ -124,3 +124,8 @@ According to the hoogle page, by adding `Uniplate` instance supports, functions 
 3. Should we consider running `inlineBinds` multiple times?
 4. What's the ideal way to handle impossible case? 
 
+
+--- 
+1. I think we need to disable `build` optimization  
+2. Type equality check is rough, need a second eye
+3. 

@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module GhcLib.Compile.ToCore  where
 
 import GHC qualified
@@ -49,6 +50,7 @@ import Control.Monad.RWS (MonadState(put))
 import Debug.Trace (traceM)
 import GhcLib.Transform.Inline (recToLetRec)
 import GhcLib.Transform.Remove (removeTyEvidence)
+import GHC.Base (build)
 
 
 data ToCoreOption = ToCoreOption
@@ -321,17 +323,17 @@ desugarToCore keepExistingFlags flags = do
     let typecheckedResult = fromRight (error "Impossible : shoud be a Right well-typed value, but received a Left") eitherTyped
     desugaredMod <- GHC.desugarModule typecheckedResult
     let coreMod = GHC.dm_core_module desugaredMod
-    -- * Print the core module
-    liftIO $ putStrLn "Core Module : "
-    liftIO $ putStrLn $ show $ GHC.mg_binds coreMod
-    liftIO $ putStrLn "\n------------------------------------"
-    liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr $ GHC.mg_binds coreMod)
-    liftIO $ putStrLn "\n------------------------------------"
+    -- -- * Print the core module
+    -- liftIO $ putStrLn "Core Module : "
+    -- liftIO $ putStrLn $ show $ GHC.mg_binds coreMod
+    -- liftIO $ putStrLn "\n------------------------------------"
+    -- liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr $ GHC.mg_binds coreMod)
+    -- liftIO $ putStrLn "\n------------------------------------"
     return (coreMod, GHC.pm_parsed_source safeParseResult)
 
 
 desugarPreprocess :: ToCore (GHC.CoreProgram, GHC.ParsedSource)
--- |  a haskell file -> desugar pass(including simple optimiser) -> handling type hole error -> normalization 
+-- |  a haskell file -> desugar pass(including simple optimiser) -> handling type hole error
 desugarPreprocess = do
     (mgCore, parsedSourceCode) <- desugarToCore False (holeFlags ++ genFlags)
     uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
@@ -358,46 +360,21 @@ desugarPreprocessNormalize = do
     uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
     let prog = preProcess uniqHoleSupply $ GHC.mg_binds mgCore
     uniqTopLevelLetRecSupply <- liftIO $ GHC.mkSplitUniqSupply 'R'
-    -- let inlineProg = recToLetRec uniqTopLevelLetRecSupply prog
+
     fnName <- liftToCore $ asks getStudentExerciseName
     let (normalizedProg, alphaRenamingMapping) = normalise fnName uniqTopLevelLetRecSupply prog 
-    liftIO $ putStrLn $ show normalizedProg
-    liftIO $ putStrLn "\n------------------------------------"
-    liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr normalizedProg)
+    -- liftIO $ putStrLn $ show normalizedProg
+    -- liftIO $ putStrLn "\n------------------------------------"
+    -- liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr normalizedProg)
     let removedTypeEvidence = removeTyEvidence normalizedProg
-    liftIO $ putStrLn "\n--------------Removed Evidence---------------------"
-    liftIO $ putStrLn $ show removedTypeEvidence
-    liftIO $ putStrLn "\n------------------------------------"
-    liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr removedTypeEvidence)
+    -- liftIO $ putStrLn "\n--------------Removed Evidence---------------------"
+    -- liftIO $ putStrLn $ show removedTypeEvidence
+    -- liftIO $ putStrLn "\n------------------------------------"
+    -- liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr removedTypeEvidence)
     return (prog, parsedSourceCode, alphaRenamingMapping)
     
 libDirPath :: IO FilePath
 libDirPath = init <$> readProcess "ghc" ["--print-libdir"] ""
-
--- test' :: ExceptT ToCoreError IO ()
-test' :: ReaderT ToCoreOption (ExceptT ToCoreError IO) ()
-test' = do
-    libDirPath' <- liftIO libDirPath
-    logging <- GHC.defaultErrorHandler
-        GHC.defaultFatalMessager
-        GHC.defaultFlushOut
-        $ GHC.runGhcT (Just libDirPath')
-        $ runToCore
-        $ do
-            _ <- desugarPreprocessNormalize
-            let test = 0
-            pure ()
-    pure ()
-
--- test :: IO ()
--- test = do
---     let target = "./ghcTestCases/Test.hs"
---     result <- runExceptT (runReaderT test' $ ToCoreOption target (takeBaseName target))
---     case result of
---         Left e -> print e
---         Right _ -> pure ()
-
-
 
 
 -- | Error Handling when unintended things happen, like when loading ill-formed haskell file, mainly IO actions.

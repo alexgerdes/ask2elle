@@ -79,7 +79,8 @@ compSimplNormalised = do
             fnName <- liftToCore $ asks getStudentExerciseName
             let (normalizedProg, alphaRenamingMapping) = normalise fnName uniqTopLevelLetRecSupply coreProg
             exerciseName <- liftToCore $ asks getStudentExerciseName
-            return $ ToCoreOutput (removeTyEvidence normalizedProg) parsedSource alphaRenamingMapping exerciseName
+            let removedTyEvidenceProg = removeTyEvidence normalizedProg
+            return $ ToCoreOutput removedTyEvidenceProg parsedSource alphaRenamingMapping exerciseName
 
 compDesNormalised :: ReaderT ToCoreOption (ExceptT ToCoreError IO) ToCoreOutput
 -- | Desugar, preprocess and normalise the program

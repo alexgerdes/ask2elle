@@ -34,6 +34,8 @@ import GhcLib.Transform.Utility
 import GHC.Core.Coercion (eqCoercion)
 import GHC.Core.Utils (exprType)
 import Data.Generics.Uniplate.Data (rewriteBi, Biplate)
+import GHC.Core.Map.Type qualified as GHC 
+
 
 class Similar a where
     (~=) ::  a -> a -> Bool
@@ -51,40 +53,50 @@ instance Similar CoreProgram where
 
 --- Without trace -------------------------------------
 instance Similar (Bind Var) where
+    (~>) :: Bind Var -> Bind Var -> Bool
     (Rec es) ~> (Rec es')          = es ~> es' 
     (NonRec v e) ~> (NonRec v' e') | isTrModuleVar v, isTrModuleVar v' = True -- disregard module info binders 
                                    | otherwise = v ~> v' && e ~> e'
-    (NonRec v e) ~> Rec ((v',e'):_) = v ~> v' && e ~> e'
+    (NonRec v e) ~> Rec ((v',e'):_) = v ~> v' && e ~> e' -- ! Not sure i'm a fan of this 
     _ ~> _                          = False
 
+    (~=) :: Bind Var -> Bind Var -> Bool
     (Rec es) ~= (Rec es')          = es ~= es'
     (NonRec v e) ~= (NonRec v' e') | isTrModuleVar v, isTrModuleVar v' = True -- disregard module info binders 
                                    | otherwise = v ~= v' && e ~= e'
     x ~= y = False
 
 instance Similar [(Var,Expr Var)] where
+    (~>) :: [(Var, Expr Var)] -> [(Var, Expr Var)] -> Bool
     es ~> es' = all (\((b,e),(b',e')) -> b ~> b' && e ~> e') (zip es es') 
+
+    (~=) :: [(Var, Expr Var)] -> [(Var, Expr Var)] -> Bool
     es ~= es' = all (\((b,e),(b',e')) -> b ~= b' && e ~= e') (zip es es') && length es == length es' 
 
 instance Similar (Expr Var) where
-    (Var id) ~> (Var id')                   = id ~> id'
+    (~>) :: Expr Var -> Expr Var -> Bool
+    (Var id) ~> (Var id')                   = id ~> id'   
     (Type t) ~> (Type t')                   = t ~> t'
     (Lit l)  ~> (Lit l')                    = l ~> l'
     (App (App f e) a) ~> (App (App f' e') a') | isCommutative f
+                                                -- ! Why we want to check a function is commutative in case of a double application
+                                                -- ! a, because it needs two arguments.
+
                                               , f ~> f' = (e ~> e' && a ~> a') || e ~> a' && e' ~> a
     (App e arg) ~> (App e' arg')            = e ~> e' && arg ~> arg'
     (Lam b e) ~> (Lam b' e')                = b  ~> b' && e ~> e' 
-    (Case e v t as) ~> (Case e' v' t' as')  = e ~> e' && v ~> v' && t  ~> t' && as ~> as'
-    e            ~> (Case e' v t as)        = any ((e ~>) . getAltExp) as 
+    (Case e v t as) ~> (Case e' v' t' as')  = e ~> e' && v ~> v' && as ~> as' -- && t  ~> t' 
+    e            ~> (Case e' v t as)        = any ((e ~>) . getAltExp) as -- ! good point, student solution might be a partial solution
     (Cast e co)  ~> (Cast e' co')           = co ~> co' && e ~> e'
     (Let b e)    ~> (Let b' e')             = b  ~> b' && e ~> e'
-    e            ~> (Let (Rec es) ine)      = any ((e ~>) . snd) es 
+    e            ~> (Let (Rec es) ine)      = any ((e ~>) . snd) es -- ! a partial solution
     (Coercion c) ~> (Coercion c')           = c  ~> c'
     (Tick _ e)   ~> (Tick _ e')             = e ~> e' 
     (Tick _ e)   ~> e'                      = e ~> e' 
     e            ~> (Tick _ e')             = e ~> e' 
     x ~> y                                  = isHoleVarExpr x || isHoleExpr x 
 
+    (~=) :: Expr Var -> Expr Var -> Bool
     (Var id) ~= (Var id')                  = id ~= id'
     (Type t) ~= (Type t')                  = t ~= t'
     (Lit l)  ~= (Lit l')                   = l ~= l'
@@ -109,6 +121,7 @@ instance Similar Coercion where
 
 
 instance Similar Literal where
+  (~>) :: Literal -> Literal -> Bool
   (LitString l)    ~> (LitString l')      = l == l' 
   (LitChar c)      ~> (LitChar c')        = c == c'
   (LitNumber ti i) ~> (LitNumber tj j)    = ti == tj && i == j
@@ -118,6 +131,7 @@ instance Similar Literal where
   LitNullAddr      ~> LitNullAddr         = True 
   l ~> k                                  = False 
 
+  (~=) :: Literal -> Literal -> Bool
   (~=) = (~>)
 
 instance Similar [Alt Var] where
@@ -162,20 +176,11 @@ instance Similar Var where
     v1 ~= v2 = getOccString v1 == getOccString v2
 
 instance Similar Type where
-    k1 ~> k2 = show k1 == show k2
+    k1 ~> k2 = GHC.deBruijnize k1 == GHC.deBruijnize k2  -- ! Could do some subtyping checking here 
     (~=) = (~>)
             -- to disregard uniques of typevars from different programs we don't use eqType
             -- using eqType would require same uniques, which we don't have across different compilations
             -- would require "renaming" all uniques from a large storage of fixed uniques 
-
--- ==================
--- Needed for list deletion
-instance Eq (Bind Var) where
-    (==) = (~>)
-
-instance Eq (Expr Var) where
-    (==) = (~>)
-
 
 
 {- we need checks for e.g  xs == reverse xs ~== reverse xs == xs 

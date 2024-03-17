@@ -6,6 +6,7 @@ module GhcLib.Transform.Inline where
 import GHC.Plugins qualified as GHC
 import qualified GHC.Types.Name as GHCOcc
 
+
 import Control.Monad.State
 import Data.Generics.Uniplate.Data
 import Data.List ( (\\) )

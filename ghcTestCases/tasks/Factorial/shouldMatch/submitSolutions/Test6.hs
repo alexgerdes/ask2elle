@@ -1,4 +1,5 @@
-module Test5 where 
+module Test6
+ where 
 
 
 factorial :: Integer -> Integer 

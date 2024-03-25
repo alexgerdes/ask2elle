@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-typed-holes #-}
-module Test2 where 
+module Test3 where 
 
 
 factorial :: (Eq t, Num t) => t -> t

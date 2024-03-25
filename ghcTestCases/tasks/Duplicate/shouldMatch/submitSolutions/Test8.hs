@@ -1,4 +1,4 @@
-module Test5 where 
+module Test8 where 
 
 
 {-# RULES "concatMap/map" forall f xs. concat (map f xs) = concatMap f xs  #-}

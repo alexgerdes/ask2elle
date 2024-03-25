@@ -125,7 +125,17 @@ According to the hoogle page, by adding `Uniplate` instance supports, functions 
 4. What's the ideal way to handle impossible case? 
 
 
---- 
+--- 2024/03/10
 1. I think we need to disable `build` optimization  
 2. Type equality check is rough, need a second eye
-3. 
+
+
+--- 2024/03/24
+1. [x] I need a function that runs every student solution against model solutions and do a summary Done 
+   1. Summary in what format? What library is better for this purpose?
+   2. Where should i put this function?
+2. [ ]  I need a function that try all possible normalizations and give a summary. 
+3. [x] A possible speedup for the testsuite of checking the validity of holemapping is load all model solutions upfront, even though the student solution could possibly not pass type checking. 
+4. [ ] Why is `analyzeAll` in `TestHoleMapping` so slow? Maybe we fire up a ghc instance for every file? 
+   1. for instance, 5 model solutions, and 10 student solutions. we fire up 15 fifteen times 
+5. [ ]  

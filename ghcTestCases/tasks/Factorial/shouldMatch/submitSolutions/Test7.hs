@@ -1,4 +1,4 @@
-module Test6 where 
+module Test7 where 
 
 
 factorial :: (Eq t, Num t) => t -> t

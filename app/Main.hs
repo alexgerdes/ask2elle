@@ -8,7 +8,8 @@ import Helium.Helium
 import Helium.Utility.Compile (AskelleOptions (..), askelleDefaultOptions)
 import Helium.Utility.PrettyPrinter
 import GhcLib.Compile.Compile (compileToCore)
-import GhcLib.Analysis.Analysis (entryPoint)
+import GhcLib.Analysis.TestHoleMapping (analyzeAll)
+import GhcLib.Analysis.Analysis(analysisEntryPoint)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 
 -- main :: IO ()
@@ -23,8 +24,10 @@ import Control.Monad.Except (ExceptT, runExceptT, throwError)
 
 
 main :: IO ()
-main = do 
-  let path = "./ghcTestCases/tasks/Duplicate/shouldMatch/submitSolutions/Duplicate.hs"
-  code <- readFile' path 
-  entryPoint "Duplicate" code
+main = do
+  -- let path = "./ghcTestCases/tasks/Factorial/shouldMatch/submitSolutions/Test1.hs"
+  -- code <- readFile' path 
+  -- result <- analysisEntryPoint "Factorial" "Test1" code
+  -- summarizeComparisonResult result
+  analyzeAll
 

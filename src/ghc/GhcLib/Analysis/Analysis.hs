@@ -1,4 +1,5 @@
-module GhcLib.Analysis.Analysis(entryPoint) where
+{-# LANGUAGE StrictData #-}
+module GhcLib.Analysis.Analysis(analysisEntryPoint,AnalysisInput(..),ComparisonResult(..), SingleComparisonResult(..), ComparisonOutput(..)) where
 
 
 import GHC qualified
@@ -37,24 +38,18 @@ import System.IO (stdout, openFile, IOMode (..), hPutStrLn, hFlush, hClose, read
 import System.Directory
 import Data.List (isPrefixOf)
 import System.FilePath
-import System.IO.Unsafe
+import Data.Foldable (foldrM)
 import Data.Char (isLetter)
 
+import GhcLib.Analysis.Utility
 import GhcLib.GHCRelated.Bag ()
-import GhcLib.Utility.Flags
 import GhcLib.GHCRelated.Utility
-import GhcLib.GHCRelated.Warning
-import GhcLib.Transform.Transform
-import GhcLib.GHCRelated.ShowCore
 import GhcLib.Compile.ToCore
 import GhcLib.Transform.Inline (recToLetRec)
-import GhcLib.Transform.Remove
-import GhcLib.Transform.Rename (alpha)
-import GhcLib.Transform.Fusion
 import GhcLib.Compile.Compile
 import GhcLib.Analysis.SimilarInstance
-import Data.Foldable (foldrM)
-import GHC (EpAnn(entry))
+
+
 
 
 type StudentSolutionPath = FilePath
@@ -64,8 +59,7 @@ type ExerciseName = String
 pathToModelSolutions:: FilePath  -> FilePath
 pathToModelSolutions task = "./ghcTestCases/tasks" </> task </> "modelSolutions"
 
-pathToStudentSolution :: String
-pathToStudentSolution = "./ghcTestCases/tasks/duplicate/shouldMatch/submitSolutions"
+
 
 
 data ComparisonOutput =  StudentSolutionInvalid | ModelSolutionInvalid | Similar | NotSimilar | NotSimilarButExpected | UnexpectedSimilar | ExpectedWrong deriving (Show, Eq)
@@ -91,15 +85,6 @@ comparePrograms compileFun expectedResult (stdModuleName,studentSolution) (model
         (True, False) -> pure  UnexpectedSimilar
 
 
-test :: IO ()
-test = do
-  stdSol <- readFile "./ghcTestCases/testfiles/dupli/good/Test3.hs"
-  modelSol <- readFile "./ghcTestCases/testfiles/dupli/good/Mod3.hs"
-  let stdModuleName = "Test3"
-      modelModuleName = "Mod3"
-  compOutput <- comparePrograms compSimplNormalised True (stdModuleName,stdSol) (modelModuleName,modelSol)
-  print $ show compOutput
-
 data SingleComparisonResult = SingleComparisonResult {
     modelModuleName :: ExerciseName,
     modelCore :: Maybe GHC.CoreProgram,
@@ -107,54 +92,44 @@ data SingleComparisonResult = SingleComparisonResult {
     }
 
 data ComparisonResult = ComparisonResult {
-    taskName :: ExerciseName, 
-    studentSolution :: String,
-    studentSolutionInfo :: Maybe ToCoreOutput, -- ^ Nothing indicates that the student solution is invalid
-    combinedComparisonResults :: [SingleComparisonResult]
+    comparisonTaskName :: ExerciseName, 
+    comparedStudentSolution :: String,
+    comparedStudentSolutionModuleName :: ExerciseName,
+    comparedStudentSolutionCore :: Either ToCoreError ToCoreOutput, -- ^ Left indicates that the student solution is invalid
+    combinedComparisonResults :: [SingleComparisonResult] -- ^ Would be empty if the student solution is invalid
 }
 
-entryPoint :: ExerciseName -> String -> IO ()
-entryPoint task studentSolution = do
-  let compileFun = compSimplNormalised
-  comparisonResult <- analyze task studentSolution compileFun
-  summarizeComparisonResult comparisonResult
+data AnalysisInput = AnalysisInput {
+    exerciseTarget :: ExerciseName,
+    studentSolutionModule :: ExerciseName,
+    studentSolutionInput :: String,
+    exerciseModelSolution :: [(String,String)]
+}
 
-analyze :: ExerciseName -> String -> CompileFunction -> IO ComparisonResult
-analyze task studentSolution compileFun = do
+-- Invariant : The file name,second input, should be the same as the module name, for student's solution, the third input
+analysisEntryPoint :: ExerciseName -> String -> String -> IO ComparisonResult
+analysisEntryPoint task studentModuleName studentSolution  = do
+  let compileFun = compSimplNormalised -- ! This could common out to be a parameter
   let pathToModelSolutions' = pathToModelSolutions task
-  pathToModels <- listDirectory $ pathToModelSolutions task
-  -- putStrLn $ pathToModelSolutions task
-  -- mapM_ putStrLn pathToModels
-  modelSolutions <- foldrM (\path acc -> 
-                              if isExtensionOf "hs" path 
-                                then do
-                                  content <- readFile' $ pathToModelSolutions'  </> path
-                                  pure $ (takeBaseName path, content) : acc
-                                else pure acc     
-                            ) [] pathToModels
-  -- mapM_ (putStrLn . show) modelSolutions
+  filenameInsideDirectory <- listDirectory pathToModelSolutions' 
+  modelSolutions <- getFilenameAndContent pathToModelSolutions' filenameInsideDirectory
   -- ^ [(moduleName, modelSolutionContent)]
-  stdSolCompOutput <- runExceptT $ compileToCore task studentSolution compileFun
-  -- ^compile student solution to core
+  analyze (AnalysisInput task studentModuleName studentSolution modelSolutions)  compileFun
+  
+
+analyze :: AnalysisInput -> CompileFunction -> IO ComparisonResult
+analyze (AnalysisInput task studentModuleName studentSolution modelSolutions) compileFun = do
+  stdSolCompOutput <- runExceptT $ compileToCore studentModuleName studentSolution compileFun
+  -- ^ compile student solution to core
   case stdSolCompOutput of
-    Left _ -> pure $ ComparisonResult task studentSolution Nothing []
+    Left toCoreErr -> pure $ ComparisonResult task studentSolution studentModuleName (Left toCoreErr) []
     Right stdSolCompileOutpu@(ToCoreOutput stdCore _ _ _) -> do
       comparisonResults <- foldrM (\(modelModuleName,modelSolution) acc -> do
                               compOutput <- compareAgainstModel compileFun True stdCore (modelModuleName,modelSolution)
                               pure $ compOutput : acc
                               ) [] modelSolutions
-      pure $ ComparisonResult task studentSolution (Just stdSolCompileOutpu) comparisonResults
+      pure $ ComparisonResult task studentSolution studentModuleName (Right stdSolCompileOutpu) comparisonResults
 
-summarizeComparisonResult :: ComparisonResult -> IO ()
-summarizeComparisonResult comparisonResult = do 
-  putStrLn "Summary of the comparison: "
-  let taskName' = taskName comparisonResult
-      studentSolution' = studentSolution comparisonResult
-      studentSolutionInfo' = studentSolutionInfo comparisonResult
-      combinedResults' = combinedComparisonResults comparisonResult
-  putStrLn $ "Task: " ++ taskName'
-  putStrLn $ "Matched with model solutions: " ++ show (length $ filter (\x -> comparisonOutput x == Similar) combinedResults')
-  putStrLn $ "List of model solutions that matched: " ++ show (map modelModuleName $ filter (\x -> comparisonOutput x == Similar) combinedResults')
 
 
 compareAgainstModel :: CompileFunction -> Bool -> GHC.CoreProgram -> (ExerciseName,String) -> IO SingleComparisonResult
@@ -174,11 +149,3 @@ compareAgainstModel compileFun expectedResult studentCoreProgram (modelModuleNam
         (True, False) -> pure $ SingleComparisonResult modelModuleName (Just modelCore)  UnexpectedSimilar
 
 
--- i want to write a testsuite compares the submitted solution with model solutions 
---  what kinda of functionalities do i need?
---   - i need to be able to compile the solution to core
---   - i need to be able to compare the core of the solution with the core of the model solution
---   -   what kind of file system structure suits this purpose?
---   -   i need to track which model solution matches the student solution, which not 
---   -   i need to make summarize based on the result. 
---          

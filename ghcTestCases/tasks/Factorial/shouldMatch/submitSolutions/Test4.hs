@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-typed-holes #-}
-module Test3 where 
+module Test4 where 
 
 
 -- expects match for all these definitions

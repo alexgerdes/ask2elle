@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-typed-holes #-}
-module Test9 where 
+module Test12 where 
 
 
 dupli :: [a] -> [a]

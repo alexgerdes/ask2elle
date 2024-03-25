@@ -1,4 +1,4 @@
-module Mod6 where 
+module Mod7 where 
 
 
 factorial :: (Eq t, Num t) => t -> t

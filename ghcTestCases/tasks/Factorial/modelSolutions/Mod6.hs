@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-typed-holes #-}
-module Mod5 where 
+module Mod6 where 
 
 
 factorial :: Integer -> Integer 

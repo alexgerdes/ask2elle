@@ -1,4 +1,4 @@
-module Test8 where 
+module Test7 where 
 
 
 dupli :: [a] -> [a]

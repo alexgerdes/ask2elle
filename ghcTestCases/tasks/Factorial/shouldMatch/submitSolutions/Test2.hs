@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wno-typed-holes #-}
 
 
-module Test1 where 
+module Test2 where 
 
 
 

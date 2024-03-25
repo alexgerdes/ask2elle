@@ -89,7 +89,7 @@ instance Similar (Expr Var) where
     e            ~> (Case e' v t as)        = any ((e ~>) . getAltExp) as -- ! good point, student solution might be a partial solution
     (Cast e co)  ~> (Cast e' co')           = co ~> co' && e ~> e'
     (Let b e)    ~> (Let b' e')             = b  ~> b' && e ~> e'
-    e            ~> (Let (Rec es) ine)      = any ((e ~>) . snd) es -- ! a partial solution
+    e            ~> (Let (Rec es) ine)      = any ((e ~>) . snd) es -- ! same reason, it could be a partial solution
     (Coercion c) ~> (Coercion c')           = c  ~> c'
     (Tick _ e)   ~> (Tick _ e')             = e ~> e' 
     (Tick _ e)   ~> e'                      = e ~> e' 
@@ -172,11 +172,15 @@ instance Similar DataCon where
     (~=) = (~>)
 
 instance Similar Var where
+    (~>) :: Var -> Var -> Bool
     v1 ~> v2 = isHoleVar v1 || getOccString v1 == getOccString v2
+    (~=) :: Var -> Var -> Bool
     v1 ~= v2 = getOccString v1 == getOccString v2
 
 instance Similar Type where
+    (~>) :: Type -> Type -> Bool
     k1 ~> k2 = GHC.deBruijnize k1 == GHC.deBruijnize k2  -- ! Could do some subtyping checking here 
+    (~=) :: Type -> Type -> Bool
     (~=) = (~>)
             -- to disregard uniques of typevars from different programs we don't use eqType
             -- using eqType would require same uniques, which we don't have across different compilations

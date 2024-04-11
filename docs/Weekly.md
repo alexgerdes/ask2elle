@@ -147,7 +147,9 @@ According to the hoogle page, by adding `Uniplate` instance supports, functions 
 8. [ ] write a function that check when non-similar problem start to diverges  
 
 --- 2024/04/10
-1. [ ] I need a 
+1. [x] an automatic testsuite
+   1. [ ] the program space leaks everywhere
+   2. [ ] the program have too many embarrasment parallelism 
    
 Notes :
 1. The transformation `RemoveTyEvidence` cannot be arbitrarily interleaved with other transformations, as it results in an invalid core representation 

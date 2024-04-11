@@ -1,4 +1,4 @@
-module Test6 where 
+module Test6 where
 
-palindrome :: Eq a => [a] -> Bool 
-palindrome xs = reverse xs == xs 
+palindrome :: (Eq a) => [a] -> Bool
+palindrome xs = reverse xs == xs

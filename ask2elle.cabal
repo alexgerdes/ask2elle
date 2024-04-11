@@ -71,14 +71,15 @@ library ghc-stage
     GhcLib.Transform.Inline
     GhcLib.Transform.Remove
     GhcLib.Transform.Rename
-    GhcLib.Transform.Transform
     GhcLib.Transform.Utility
     GhcLib.Utility.Flags
 
   exposed-modules:
     GhcLib.Analysis.Analysis
+    GhcLib.Analysis.Draw
     GhcLib.Analysis.TestHoleMapping
     GhcLib.Compile.Compile
+    GhcLib.Transform.Transform
 
   build-depends:
     , base           ^>=4.16.4.0
@@ -94,6 +95,7 @@ library ghc-stage
     , mtl
     , pretty-simple
     , process
+    , tabular
     , text           ^>=2.0
     , time
     , uniplate
@@ -128,13 +130,14 @@ executable ask2elle
   import:           common-extensions
   main-is:          Main.hs
   build-depends:
-    , base          ^>=4.16.4.0
+    , base        ^>=4.16.4.0
     , bytestring
     , ghc-stage
-    , helium-stage
     , mtl
-    , text          ^>=2.0
+    , tabular
+    , text        ^>=2.0
 
+  -- , helium-stage
   -- we can update text to 2.1 if the version constraint text , within parsec from Top, is updated.
   --  as the newst version of text and bytestring finally have the same underlying representation of byte arrays
 

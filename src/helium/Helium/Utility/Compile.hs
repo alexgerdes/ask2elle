@@ -1,6 +1,14 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Helium.Utility.Compile (compile, AskelleOptions (..), IsPrelude, CompilationResult (..), askelleDefaultOptions, typeOf, HeliumError (..)) where
+module Helium.Utility.Compile
+    ( compile
+    , AskelleOptions (..)
+    , IsPrelude
+    , CompilationResult (..)
+    , askelleDefaultOptions
+    , typeOf
+    , HeliumError (..)
+    ) where
 
 import Control.Monad.Except (ExceptT (..), MonadError (throwError), runExceptT)
 import Control.Monad.IO.Class (MonadIO)
@@ -34,15 +42,23 @@ import Top.Types qualified as Top
 
 import Helium.Utility.Instances ()
 
-compile :: IsPrelude -> T.Text -> AskelleOptions -> IO (Either (HeliumError, T.Text) CompilationResult)
+compile
+    :: IsPrelude
+    -> T.Text
+    -> AskelleOptions
+    -> IO (Either (HeliumError, T.Text) CompilationResult)
 compile isPrelude txt opts = do
-    ea <- runExceptT $ runCompile $ compile' isPrelude txt [Helium.Overloading, Helium.UseTutor] opts
+    ea <-
+        runExceptT $
+            runCompile $
+                compile' isPrelude txt [Helium.Overloading, Helium.UseTutor] opts
     case ea of
         Left (errTyp, errText) -> pure $ Left (errTyp, T.unlines errText)
         Right a -> pure $ Right a
 
 newtype Compile a = MkCompile {runCompile :: ExceptT (HeliumError, [T.Text]) IO a}
-    deriving newtype (Functor, Applicative, Monad, MonadIO, MonadError (HeliumError, [T.Text]))
+    deriving newtype
+        (Functor, Applicative, Monad, MonadIO, MonadError (HeliumError, [T.Text]))
 
 data AskelleOptions = AskelleOptions
     { filterTypeSigs :: Bool
@@ -83,7 +99,12 @@ getLvmPath = do
     (p : _) <- lines <$> readProcess "heliumpath" [] []
     pure [joinPath [takeDirectory p, "share", "lib"]]
 
-compile' :: IsPrelude -> T.Text -> [Helium.Option] -> AskelleOptions -> Compile CompilationResult
+compile'
+    :: IsPrelude
+    -> T.Text
+    -> [Helium.Option]
+    -> AskelleOptions
+    -> Compile CompilationResult
 compile' isPrelude codeSnippet heliumOptions (AskelleOptions{filterTypeSigs, imports, moduleName}) = do
     lvmPath <- liftIO getLvmPath
 
@@ -120,7 +141,11 @@ compile' isPrelude codeSnippet heliumOptions (AskelleOptions{filterTypeSigs, imp
     -- Phase 5: Static checking
     (localEnv, _typeSignatures, staticWarnings) <-
         doPhaseWithExit HeliumStaticCheckerError $
-            Helium.phaseStaticChecks moduleName' resolvedModule importEnvsWithMod heliumOptions
+            Helium.phaseStaticChecks
+                moduleName'
+                resolvedModule
+                importEnvsWithMod
+                heliumOptions
 
     -- Phase 6: Kind inferencing (skipped)
     let combinedEnv = foldr Helium.combineImportEnvironments localEnv importEnvs
@@ -135,9 +160,21 @@ compile' isPrelude codeSnippet heliumOptions (AskelleOptions{filterTypeSigs, imp
 
     (dictionaryEnv, afterTypeInferEnv, toplevelTypes, typeWarnings) <-
         doPhaseWithExit HeliumTypeCheckerError $
-            Helium.phaseTypeInferencer "." moduleName' resolvedModule localEnv beforeTypeInferEnv newOptions
+            Helium.phaseTypeInferencer
+                "."
+                moduleName'
+                resolvedModule
+                localEnv
+                beforeTypeInferEnv
+                newOptions
 
-    pure $ CompilationResult dictionaryEnv afterTypeInferEnv toplevelTypes typeWarnings resolvedModule
+    pure $
+        CompilationResult
+            dictionaryEnv
+            afterTypeInferEnv
+            toplevelTypes
+            typeWarnings
+            resolvedModule
   where
     -- new base function, but not included until base-4.18.0.0
     applyWhen :: Bool -> (a -> a) -> a -> a
@@ -145,7 +182,8 @@ compile' isPrelude codeSnippet heliumOptions (AskelleOptions{filterTypeSigs, imp
     applyWhen False _ x = x
 
 -- | Adjusted code from CompileUtils
-doPhaseWithExit :: HeliumSA.HasMessage err => HeliumError -> Helium.Phase err a -> Compile a
+doPhaseWithExit
+    :: (HeliumSA.HasMessage err) => HeliumError -> Helium.Phase err a -> Compile a
 doPhaseWithExit phaseErrorConstructor phaseFn = MkCompile . ExceptT $ do
     result <- phaseFn
     case result of
@@ -169,9 +207,17 @@ ignoreTypeSigs (Helium.Module_Module r n e b) = Helium.Module_Module r n e (filt
     filterFunctionBindings d = d
     filterFunctionBinding (Helium.FunctionBinding_FunctionBinding r' lhs rhs) = Helium.FunctionBinding_FunctionBinding r' lhs (filterRhs rhs)
     filterFunctionBinding binding = binding
-    filterRhs (Helium.RightHandSide_Expression r' e' (Helium.MaybeDeclarations_Just d)) = Helium.RightHandSide_Expression r' e' (Helium.MaybeDeclarations_Just $ filterDecls d)
+    filterRhs (Helium.RightHandSide_Expression r' e' (Helium.MaybeDeclarations_Just d)) =
+        Helium.RightHandSide_Expression
+            r'
+            e'
+            (Helium.MaybeDeclarations_Just $ filterDecls d)
     filterRhs rhs@(Helium.RightHandSide_Expression{}) = rhs
-    filterRhs (Helium.RightHandSide_Guarded r' e' (Helium.MaybeDeclarations_Just d)) = Helium.RightHandSide_Guarded r' e' (Helium.MaybeDeclarations_Just $ filterDecls d)
+    filterRhs (Helium.RightHandSide_Guarded r' e' (Helium.MaybeDeclarations_Just d)) =
+        Helium.RightHandSide_Guarded
+            r'
+            e'
+            (Helium.MaybeDeclarations_Just $ filterDecls d)
     filterRhs rhs@(Helium.RightHandSide_Guarded{}) = rhs
     isTypeSig (Helium.Declaration_TypeSignature{}) = True
     isTypeSig _ = False
@@ -206,7 +252,10 @@ toplevelNames (Helium.Module_Module _ _ _ b) =
 toImportEnv :: [(String, String)] -> Helium.ImportEnvironment
 toImportEnv = foldr addType' Helium.emptyEnvironment
   where
-    addType' (name, ty) = Helium.addType (Helium.Name_Identifier Helium.noRange [] [] name) (parseTpScheme ty)
+    addType' (name, ty) =
+        Helium.addType
+            (Helium.Name_Identifier Helium.noRange [] [] name)
+            (parseTpScheme ty)
 
 -- | Parse a type from a string
 parseTpScheme :: String -> Top.TpScheme
@@ -216,13 +265,22 @@ parseTpScheme = HeliumSA.makeTpSchemeFromType . parseFromString HeliumParser.con
 parseFromString :: HeliumParser.HParser a -> String -> a
 parseFromString p string =
     case HeliumParser.lexer [] "ParseFromString" string of
-        Left _ -> Helium.internalError "ParseFromString" "parseFromString" ("lex error in " ++ string)
+        Left _ ->
+            Helium.internalError
+                "ParseFromString"
+                "parseFromString"
+                ("lex error in " ++ string)
         Right (tokens, _) ->
             case HeliumParser.runHParser p "ParseFromString" tokens True {- wait for EOF -} of
-                Left _ -> Helium.internalError "ParseFromString" "parseFromString" ("parse error in " ++ string)
+                Left _ ->
+                    Helium.internalError
+                        "ParseFromString"
+                        "parseFromString"
+                        ("parse error in " ++ string)
                 Right x -> x
 
-_parseFromString' :: [Helium.Option] -> HeliumParser.HParser a -> String -> Maybe a
+_parseFromString'
+    :: [Helium.Option] -> HeliumParser.HParser a -> String -> Maybe a
 _parseFromString' _options p string =
     case HeliumParser.lexer [] "ParseFromString" string of
         Left _ -> Nothing
@@ -231,11 +289,13 @@ _parseFromString' _options p string =
                 Left _ -> Nothing
                 Right x -> Just x
 
-filterImportEnvs :: [Helium.Name] -> [Helium.ImportEnvironment] -> [Helium.ImportEnvironment]
+filterImportEnvs
+    :: [Helium.Name] -> [Helium.ImportEnvironment] -> [Helium.ImportEnvironment]
 filterImportEnvs ns = map f
   where
     f :: Helium.ImportEnvironment -> Helium.ImportEnvironment
-    f env = env{Helium.typeEnvironment = Map.filterWithKey p (Helium.typeEnvironment env)}
+    f env =
+        env{Helium.typeEnvironment = Map.filterWithKey p (Helium.typeEnvironment env)}
     p :: Helium.Name -> tpScheme -> Bool
     p n _ = n `notElem` ns
 

@@ -1,41 +1,119 @@
-module GhcLib.Transform.Transform  (preProcess, normalise) where
+module GhcLib.Transform.Transform
+    ( preProcess
+    , normalise
+    , normalizationOption
+    , performNormalizationOptions
+    , NormalizationOption (..)
+    , allNormalizationOptions
+    , allPossibleNormalizationOptions
+    , postNormalizationOption
+    , performPostNormalizationOptions
+    , PostNormalizationOption (..)
+    , allPossiblePostNormalizationOptions
+    , allPostNormalizationOptions
+    ) where
 
-import qualified GHC.Core as GHC 
-import qualified GHC.Types.Var as GHC
+import GHC.Core qualified as GHC
+import GHC.Types.Var qualified as GHC
 
-import GhcLib.Transform.Rename
-import GhcLib.Transform.Remove 
-import qualified GHC.Types.Unique.Supply as GHC
-import GhcLib.Transform.Inline  ( inlineBinds, recToLetRec ) 
+import GHC.Types.Unique.Supply qualified as GHC
 import GhcLib.Transform.Eta (etaReduce)
+import GhcLib.Transform.Inline (inlineBinds, recToLetRec)
+import GhcLib.Transform.Remove
+import GhcLib.Transform.Rename
 
-import qualified Data.Map.Strict as Map
+import Data.Foldable qualified as Fold
+import Data.Map.Strict qualified as Map
+import GHC qualified
+import GHC.Core.Opt.Pipeline qualified as GHC
 
-
+import Control.Applicative (Applicative (liftA2))
+import Control.Monad (filterM)
+import Data.List (permutations)
 
 preProcess :: GHC.UniqSupply -> GHC.CoreProgram -> GHC.CoreProgram
--- | Preprocessing transformations
-preProcess identSupply p = replacePatErrors $ replaceHoles identSupply p 
 
-normalise :: String -> GHC.UniqSupply -> GHC.CoreProgram -> (GHC.CoreProgram, Map.Map GHC.Var GHC.Var)
+-- | Preprocessing transformations
+preProcess identSupply p = replacePatErrors $ replaceHoles identSupply p
+
+normalise
+    :: String
+    -> GHC.UniqSupply
+    -> GHC.CoreProgram
+    -> (GHC.CoreProgram, Map.Map GHC.Var GHC.Var)
+
 -- | Normalising transformations
 -- normalise name letRecSupply prog = recToLetRec letRecSupply $ inlineBinds name prog
 normalise exerciseName letRecSupply prog =
-    let inlineTopBinds = inlineBinds exerciseName prog 
+    let inlineTopBinds = inlineBinds exerciseName prog
         recusiveToLetRec = recToLetRec letRecSupply inlineTopBinds
-        -- removeEqCheck = removeRedundantEqCheck recusiveToLetRec
-        -- etaReduced = etaReduce removeEqCheck
-        alphaRenamed = alpha exerciseName recusiveToLetRec
-    in (recusiveToLetRec, Map.empty)
+        removeEqCheck = removeRedundantEqCheck recusiveToLetRec
+        etaReduced = etaReduce removeEqCheck
+        alphaRenamed = alpha exerciseName etaReduced
+    in  alphaRenamed
 
+data NormalizationOption = InlineBinds | RecToLetRec | RemoveEqCheck | EtaReduce
+    deriving (Eq, Ord, Enum, Bounded, Show)
 
+allNormalizationOptions :: [NormalizationOption]
+allNormalizationOptions = [minBound .. maxBound]
 
+allCombinations :: [a] -> [[a]]
+allCombinations xs = concatMap permutations $ filterM (const [True, False]) xs
+
+allPossibleNormalizationOptions :: [[NormalizationOption]]
+allPossibleNormalizationOptions = allCombinations allNormalizationOptions
+
+normalizationOption
+    :: String
+    -> GHC.UniqSupply
+    -> GHC.HscEnv
+    -> NormalizationOption
+    -> (GHC.CoreProgram -> GHC.CoreProgram)
+-- ^ Must be a total function
+normalizationOption exerciseName letRecSupply env = \case
+    InlineBinds -> inlineBinds exerciseName
+    RecToLetRec -> recToLetRec letRecSupply
+    RemoveEqCheck -> removeRedundantEqCheck
+    EtaReduce -> etaReduce
+
+-- RemoveTyEvidence -> removeTyEvidence
+-- ("core2coreSimpl" , GHC.core2core env )
+
+performNormalizationOptions
+    :: [NormalizationOption]
+    -> (NormalizationOption -> (GHC.CoreProgram -> GHC.CoreProgram))
+    -> GHC.CoreProgram
+    -> GHC.CoreProgram
+performNormalizationOptions choices dispatcher prog = Fold.foldl' (flip dispatcher) prog choices
+
+data PostNormalizationOption = RemoveTyEvidence
+    deriving (Eq, Ord, Enum, Bounded, Show)
+
+postNormalizationOption
+    :: PostNormalizationOption -> (GHC.CoreProgram -> GHC.CoreProgram)
+postNormalizationOption = \case
+    -- AlphaRename -> alpha exerciseName
+    RemoveTyEvidence -> removeTyEvidence
+
+performPostNormalizationOptions
+    :: [PostNormalizationOption]
+    -> (PostNormalizationOption -> (GHC.CoreProgram -> GHC.CoreProgram))
+    -> GHC.CoreProgram
+    -> GHC.CoreProgram
+performPostNormalizationOptions choices dispatcher prog = Fold.foldl' (flip dispatcher) prog choices
+
+allPostNormalizationOptions :: [PostNormalizationOption]
+allPostNormalizationOptions = [minBound .. maxBound]
+
+allPossiblePostNormalizationOptions :: [[PostNormalizationOption]]
+allPossiblePostNormalizationOptions = allCombinations allPostNormalizationOptions
 
 --- EXPERIMENTAL STUFF BELOW
 ----------------------------------------------------
 
 {- inlineRedLets :: CoreProgram -> IO CoreProgram
--- | Inline redundant let expressions, e.g. let f = x in g f => g x 
+-- | Inline redundant let expressions, e.g. let f = x in g f => g x
 inlineRedLets = return . rewriteBi removeLet
 
 removeLet :: CoreExpr ->  Maybe CoreExpr
@@ -53,9 +131,8 @@ getInnerExp (App e v) | isEvOrTyExp v = getInnerExp e
                       | otherwise     = App e v
 getInnerExp e = e
 
-
 floatOutLets :: CoreProgram -> CoreProgram
--- | Float let-binders to toplevel, e.g. f = let g = x in g => x 
+-- | Float let-binders to toplevel, e.g. f = let g = x in g => x
 floatOutLets = transformBi $ \bind -> case bind :: CoreBind of
      (NonRec v (Lam a (Let b (App (Var v') (Var a'))))) | getBindTopVar b ~= v'
                                                         , a ~= a' -> transformBi (subst v v') (setBindTopVar v b)
@@ -66,7 +143,6 @@ floatOutLets = transformBi $ \bind -> case bind :: CoreBind of
 setBindTopVar :: Var -> CoreBind -> CoreBind
 setBindTopVar new (NonRec v e)     = NonRec new e
 setBindTopVar new (Rec ((v,e):es)) = Rec ((new,e):es)
-
 
 floatOut :: CoreProgram -> Ghc CoreProgram
 -- | Using the float out transformation from GHC
@@ -81,7 +157,6 @@ floatOut p = do
             }
     us <- liftIO $ mkSplitUniqSupply 'z'
     liftIO $ floatOutwards logger floatSw df us p -}
-
 
 {- addDefaultCase :: CoreProgram -> Ghc CoreProgram
 addDefaultCase p = do
@@ -101,14 +176,15 @@ addDefCase :: InScopeSet -> CoreBind -> Ghc CoreBind
 addDefCase is (NonRec b e)     | not (hasCase e) && not (isEvOrTyVar b) = (addCase is e) >>= \ex -> return $ NonRec b ex
 addDefCase is (Rec ((b,e):es)) | not (hasCase e) && not (isEvOrTyVar b) = (addCase is e) >>= \ex -> return $ Rec ((b,ex):es)
 addDefCase is b = return b
-         -}                -- | needsCaseBinding (varType v) e = addCase e v -- rather tests whether
-                                                                       -- needs to use a case rather than let bind
+         -}
+-- \| needsCaseBinding (varType v) e = addCase e v -- rather tests whether
+-- needs to use a case rather than let bind
 
 {- addCase :: InScopeSet -> Expr Var -> Ghc (Expr Var)
 addCase is e = do
     let v = getFirstNonTypeLam e
     let t = ft_res $ ft_res (dropForAlls $ exprType e)
-    wild <- newGhcVar t is  -- should have same type as the case 
+    wild <- newGhcVar t is  -- should have same type as the case
     return $ liftLambdas e (Case (Var v) wild t [Alt DEFAULT [] (innerExp e)])
     where innerExp (Lam v e) = innerExp e
           innerExp e         = e
@@ -118,12 +194,12 @@ addCase is e = do
                                        | otherwise = v
           getFirstNonTypeLam ex = error (show ex) -}
 
-{- removeTyErrors :: CoreProgram -> IO CoreProgram 
+{- removeTyErrors :: CoreProgram -> IO CoreProgram
 -- | Remove non-hole type errors
-removeTyErrors p = return . rewriteBi remTyErr $ p 
-    where remTyErr (App ex c@(Case {})) | isTyError c = return ex 
-          remTyErr (App c@(Case {}) ex) | isTyError c = return ex 
-          remTyErr _ = Nothing 
+removeTyErrors p = return . rewriteBi remTyErr $ p
+    where remTyErr (App ex c@(Case {})) | isTyError c = return ex
+          remTyErr (App c@(Case {}) ex) | isTyError c = return ex
+          remTyErr _ = Nothing
  -}
 {- addDefaultCase :: CoreProgram -> CoreProgram
 addDefaultCase p = evalState (pm p) initSt
@@ -134,32 +210,34 @@ addDefCase ex@(Lam v e) | isTyVar v                     = Lam v <$> addDefCase e
                         | needsCaseBinding (varType v) e = addCase e v -- rather tests whether
                                                                        -- needs to use a case rather than let bind
 addDefCase e = return e -}
-{- 
+{-
 addCase :: Expr Var -> Var -> Ctx (Expr Var)
 addCase e v = do
     let t = varType v
     fresh <- freshVar t
-    wild <- freshVar t  -- should have same type as the case 
+    wild <- freshVar t  -- should have same type as the case
     e' <- subst_ fresh v e
     return $ Lam fresh $ mkDefaultCase (Var fresh) wild e'
  -}
 
--- Core Utils 
+-- Core Utils
 -- mkSingleAltCase
 -- needsCaseBInding
 -- bindNonRec
--- mkAltExpr -- make case alternatives 
+-- mkAltExpr -- make case alternatives
+
 -- | Extract the default case alternative
 -- findDefault :: [Alt b] -> ([Alt b], Maybe (Expr b))
 -- -- | Find the case alternative corresponding to a particular
 -- constructor: panics if no such constructor exists
 -- findAlt :: AltCon -> [Alt b] -> Maybe (Alt b)
--- check if we can use diffBinds from Core.Utils to find small diffs 
+-- check if we can use diffBinds from Core.Utils to find small diffs
 -- diffExpr instead of my similarity relation? need an RnEnv2
 -- mkLamTypes :: [Var] -> Type -> Type
 -- can this be used for beta-expansioN???????
 -- applyTypeToArgs :: HasDebugCallStack => SDoc -> Type -> [CoreExpr] -> Type
 -- ^ Determines the type resulting from applying an expression with given type
+
 --- to given argument expressions.
 -- Do I need to do this backwards when eta-reducing?
 {- caseToGuard :: BiplateFor CoreProgram => CoreProgram -> CoreProgram

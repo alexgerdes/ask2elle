@@ -25,6 +25,7 @@
             nixfmt
             zlib
             sqlite
+            cloc 
             # gcc
           ]);
         };

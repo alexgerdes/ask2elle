@@ -1,8 +1,9 @@
 {-# OPTIONS_GHC -Wno-typed-holes #-}
-module Mod4 where 
 
+module Mod4 where
 
-factorial :: (Eq t, Num t) => t -> t 
-factorial = f  
-    where f 0 = 1 
-          f m = m * f (m - 1)
+factorial :: (Eq t, Num t) => t -> t
+factorial = f
+  where
+    f 0 = 1
+    f m = m * f (m - 1)

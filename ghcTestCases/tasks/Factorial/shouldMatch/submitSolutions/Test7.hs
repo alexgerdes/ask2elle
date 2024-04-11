@@ -1,6 +1,5 @@
-module Test7 where 
-
+module Test7 where
 
 factorial :: (Eq t, Num t) => t -> t
-factorial 0 = 1 
+factorial 0 = 1
 factorial m = factorial (m - 1) * m --- test commutativity

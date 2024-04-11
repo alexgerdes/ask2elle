@@ -1,10 +1,9 @@
 {-# OPTIONS_GHC -Wno-typed-holes #-}
-module Test5 where 
 
+module Test5 where
 
-factorial :: Integer -> Integer  
-factorial = f   
+factorial :: Integer -> Integer
+factorial = f
 
-f 0 = 1 
-f m = m * f (m - 1)  
-
+f 0 = 1
+f m = m * f (m - 1)

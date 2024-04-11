@@ -1,1 +1,1 @@
-module GhcLib.Analysis.Feedback where 
+module GhcLib.Analysis.Feedback where

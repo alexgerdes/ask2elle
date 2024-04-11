@@ -1,9 +1,8 @@
-module Test4 where 
-
+module Test4 where
 
 f :: [Int] -> Int
-f xs = case xs of 
-    []  -> 1
+f xs = case xs of
+    [] -> 1
     [2] -> 2
     [3] -> 3
-    _   -> 4 
+    _ -> 4

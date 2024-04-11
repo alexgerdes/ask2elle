@@ -1,42 +1,42 @@
-
-{-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE MonoLocalBinds #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# HLINT ignore "Use lambda-case" #-}
 
 module GhcLib.Transform.Utility where
 
--- GHC imports 
-import qualified GHC
-import qualified GHC.Plugins as GHC
-import qualified GHC.Core.TyCo.Rep as GHC
-import qualified GHC.Types.Name.Occurrence as Occ
-import qualified GHC.Utils.Encoding as GHC
-import qualified GHC.Core.Predicate as GHC
+-- GHC imports
+import GHC qualified
+import GHC.Core.Predicate qualified as GHC
+import GHC.Core.TyCo.Rep qualified as GHC
+import GHC.Plugins qualified as GHC
+import GHC.Types.Name.Occurrence qualified as Occ
+import GHC.Utils.Encoding qualified as GHC
 
--- General imports 
+-- General imports
+
+import Control.Monad (replicateM_, void)
+import Data.Bifunctor (Bifunctor (first, second))
+import Data.Foldable (Foldable (foldl'))
 import Data.Generics.Uniplate.Data
-import Control.Monad ( void, replicateM_ )
-import qualified Text.Megaparsec as Parser
-import qualified Text.Megaparsec.Char as Parser
 import Data.Void (Void)
 import GHC.Base (assert)
-import Data.Foldable (Foldable(foldl'))
-import Data.Bifunctor (Bifunctor(first, second))
+import Text.Megaparsec qualified as Parser
+import Text.Megaparsec.Char qualified as Parser
 
-
-
-data HoleCandidates = HoleCandidates {
-    holeCount :: !Int,
-    holeNameCandicate :: ![GHC.UniqSupply]
-  }
+data HoleCandidates = HoleCandidates
+    { holeCount :: !Int
+    , holeNameCandicate :: ![GHC.UniqSupply]
+    }
 
 -- * Functions for checking if an expression is a typed hole
 isHoleExpr :: GHC.CoreExpr -> Bool
+
 -- | Check if a case expression is a typed hole expression
-isHoleExpr (GHC.Case e _ _ _) = hasHoleMsg e     -- need to check hasHoleMsg if deferring all type errors
-isHoleExpr (GHC.Tick _ e)     = isHoleExpr e
-isHoleExpr _              = False                -- and not only typed holes
+isHoleExpr (GHC.Case e _ _ _) = hasHoleMsg e -- need to check hasHoleMsg if deferring all type errors
+isHoleExpr (GHC.Tick _ e) = isHoleExpr e
+isHoleExpr _ = False -- and not only typed holes
 
 -- | Take a GHC CoreExpr and check if it contains a hole message
 hasHoleMsg :: GHC.CoreExpr -> Bool
@@ -45,22 +45,23 @@ hasHoleMsg e = not $ null [l | GHC.Lit l <- children e, isTypedHolErrMsg l]
 -- | Take a GHC Literal and check if it is a typed hole error message
 isTypedHolErrMsg :: GHC.Literal -> Bool
 isTypedHolErrMsg (GHC.LitString l) =
-  let litStr = lines $ GHC.utf8DecodeByteString l
-      checkHoleMsg :: [String] -> Bool
-      checkHoleMsg xs
-        -- Hole Msgs are always more than 2 lines, we need to check if the second line indicates it is a hole message
-        | length xs >= 2 = let holeMsg = xs !! 1
-                           in  case Parser.parseMaybe parseHoleErrStr holeMsg of
-                                        -- The LitString could be a multiline string, but without the hole message
-                                        Nothing -> False
-                                        Just () -> True
-        -- The LitString could be just a regular oneline string 
-        | otherwise = False
-  in checkHoleMsg litStr
+    let litStr = lines $ GHC.utf8DecodeByteString l
+        checkHoleMsg :: [String] -> Bool
+        checkHoleMsg xs
+            -- Hole Msgs are always more than 2 lines, we need to check if the second line indicates it is a hole message
+            | length xs >= 2 =
+                let holeMsg = xs !! 1
+                in  case Parser.parseMaybe parseHoleErrStr holeMsg of
+                        -- The LitString could be a multiline string, but without the hole message
+                        Nothing -> False
+                        Just () -> True
+            -- The LitString could be just a regular oneline string
+            | otherwise = False
+    in  checkHoleMsg litStr
   where
-      parseHoleErrStr :: Parser.Parsec Void String ()
-      parseHoleErrStr = do
-        replicateM_ 4 Parser.space  -- ! This is hardcoded and might not work if the GHC error message output changes
+    parseHoleErrStr :: Parser.Parsec Void String ()
+    parseHoleErrStr = do
+        replicateM_ 4 Parser.space -- ! This is hardcoded and might not work if the GHC error message output changes
         void $ Parser.string "• Found hole: _ ::"
         void $ Parser.many $ Parser.satisfy (const True)
         Parser.eof
@@ -74,7 +75,7 @@ isPatError (GHC.Case e _ t _) = case getPatErr e of
 isPatError (GHC.Tick _ e) = isPatError e
 isPatError e = isPatErrVar e
 
-{- 
+{-
 -- * Alternative implementation of the functions for checking if an expression is a pattern error
 isPatError :: GHC.CoreExpr -> Bool
 -- | Check if a case expression is a typed hole expression
@@ -88,15 +89,15 @@ hasPatErrMsg e = not $ null [l | GHC.Lit l <- children e, isPatErrMsg l]
 
 -- | Take a GHC Literal and check if it is a typed hole error message
 isPatErrMsg :: GHC.Literal -> Bool
-isPatErrMsg (GHC.LitString l) = 
+isPatErrMsg (GHC.LitString l) =
   let litStr = GHC.utf8DecodeByteString l
-      checkErrMsg :: String -> Bool 
-      checkErrMsg xs = 
-                      case Parser.parseMaybe parsePatErrStr xs of 
+      checkErrMsg :: String -> Bool
+      checkErrMsg xs =
+                      case Parser.parseMaybe parsePatErrStr xs of
                                         Nothing -> False
                                         Just () -> True
   in checkErrMsg litStr
-  where       
+  where
       parsePatErrStr :: Parser.Parsec Void String ()
       parsePatErrStr = do
         _ <- manyTill Parser.anySingle $ Parser.string "|case"
@@ -122,7 +123,6 @@ getVarFromName name e
   where
     vars = [Just v | (GHC.Var v) <- universe e, GHC.getOccString v == name]
 
-
 isPatErrVar :: GHC.CoreExpr -> Bool
 isPatErrVar (GHC.Var v) = isErrVar "patError" v
 isPatErrVar _ = False
@@ -145,6 +145,7 @@ isEvOrTyVar :: GHC.Var -> Bool
 isEvOrTyVar v = GHC.isTyVar v || GHC.isEvVar v
 
 isEvOrTyExp :: GHC.CoreExpr -> Bool
+
 -- | Is type or type/evidence variable
 isEvOrTyExp e = case e of
     (GHC.Var v) -> isEvOrTyVar v
@@ -163,9 +164,10 @@ getAltExp :: GHC.Alt GHC.Var -> GHC.CoreExpr
 getAltExp (GHC.Alt _ _ (GHC.Tick _ e)) = e
 getAltExp (GHC.Alt _ _ e) = e
 
-
 isHoleVar :: GHC.Var -> Bool
-isHoleVar v = take 4 (GHC.getOccString v) == "hole" -- * Original Haskell Core language shouldn't contain any variable name starting with "hole". This is derived from previous transformation performed by us.
+isHoleVar v = take 4 (GHC.getOccString v) == "hole"
+
+-- \* Original Haskell Core language shouldn't contain any variable name starting with "hole". This is derived from previous transformation performed by us.
 
 isHoleVarExpr :: GHC.CoreExpr -> Bool
 isHoleVarExpr (GHC.Var v) = isHoleVar v
@@ -173,62 +175,69 @@ isHoleVarExpr (GHC.Tick _ e) = isHoleVarExpr e -- any expression might be wrappe
 isHoleVarExpr _ = False
 
 makeLocal :: GHC.Var -> GHC.Var
-  -- | Invariant: in the call site, the input variable should always to a computational related value
-  -- |    hence never type level value 
-makeLocal v = assert (GHC.isId v) $ GHC.mkLocalId (GHC.varName v) (GHC.varMult v) (GHC.varType v)
+-- \| Invariant: in the call site, the input variable should always to a computational related value
+-- \|    hence never type level value
+makeLocal v =
+    assert (GHC.isId v) $
+        GHC.mkLocalId (GHC.varName v) (GHC.varMult v) (GHC.varType v)
 makeName :: String -> GHC.Unique -> GHC.SrcSpan -> GHC.Name
-{- | Create a name from a string and a variable
-   used for renaming variables
--}
+
+-- | Create a name from a string and a variable
+--    used for renaming variables
 makeName n uq = GHC.mkInternalName uq (GHC.mkOccName Occ.varName n)
 
 updateVar :: GHC.Var -> GHC.CoreBind -> GHC.CoreBind
+
 -- | update variable information
 updateVar v = transformBi $ \e -> case e :: GHC.CoreExpr of
     (GHC.Var v') | v == v' -> GHC.Var v
     rest -> rest
 
-
-{- | subsVar takes a replacement variable and a target variable and a CoreExpr,
-       replacing every occurance of the target variable with the replacement variable in the CoreExpr
--}
+-- | subsVar takes a replacement variable and a target variable and a CoreExpr,
+--        replacing every occurance of the target variable with the replacement variable in the CoreExpr
 subsVar :: GHC.Var -> GHC.Var -> GHC.CoreExpr -> GHC.CoreExpr
 subsVar replacement target =
     -- trace ("found subsVar" ++ show "["++ show v' ++ "->" ++ show v ++"]" ) $
     transformBi (sub replacement target)
-    where
-      sub :: GHC.Var -> GHC.Var -> GHC.CoreExpr -> GHC.CoreExpr
-      -- | Replace the second variable with the first one given
-      sub r t expr = case expr of
-                        (GHC.Var ident) | ident == t -> GHC.Var r
-                        e -> e
+  where
+    sub :: GHC.Var -> GHC.Var -> GHC.CoreExpr -> GHC.CoreExpr
+    -- \| Replace the second variable with the first one given
+    sub r t expr = case expr of
+        (GHC.Var ident) | ident == t -> GHC.Var r
+        e -> e
 
 subsExpr :: GHC.CoreExpr -> GHC.Var -> GHC.CoreExpr -> GHC.CoreExpr
+
 -- | Replace the variable with an expression
 subsExpr expr v = transformBi $ \case
     (GHC.Var ident) | ident == v -> expr
     e -> e
 
-
 getBindTopVar :: GHC.CoreBind -> GHC.Var
-{- |  Get variable of a binder
-   |  Invariant : The input CoreBind will always return a var, even though the type of Rec indicates the possibility of empty list
--}
-getBindTopVar (GHC.NonRec v _) = v
-getBindTopVar (GHC.Rec xs ) = assert (not (null xs)) $ fst $ head xs
 
+-- |  Get variable of a binder
+--    |  Invariant : The input CoreBind will always return a var, even though the type of Rec indicates the possibility of empty list
+getBindTopVar (GHC.NonRec v _) = v
+getBindTopVar (GHC.Rec xs) = assert (not (null xs)) $ fst $ head xs
 
 varAppearsInBind :: GHC.Var -> GHC.CoreBind -> Bool
+
 -- | Find out whether or not a variable is used somewhere in a binder
-varAppearsInBind  var expr = or [v == var | v <- universeBi expr]
+varAppearsInBind var expr = or [v == var | v <- universeBi expr]
 
 varAppearsInExpr :: GHC.Var -> GHC.CoreExpr -> Bool
+
 -- | Find if a variable is used somewhere in an expression
 varAppearsInExpr v e = or [v == v' | v' <- universeBi e :: [GHC.Var]]
 
-getBindersByVar :: [GHC.CoreBind] -> GHC.CoreBind -> ([GHC.CoreBind], [GHC.CoreBind])
-  -- | Get all binders referencing the second argument
-getBindersByVar binds target = foldl' (\acc bind -> if isUsed bind then first (bind :) acc else second (bind :) acc) ([],[]) binds
+getBindersByVar
+    :: [GHC.CoreBind] -> GHC.CoreBind -> ([GHC.CoreBind], [GHC.CoreBind])
+-- \| Get all binders referencing the second argument
+getBindersByVar binds target =
+    foldl'
+        (\acc bind -> if isUsed bind then first (bind :) acc else second (bind :) acc)
+        ([], [])
+        binds
   where
-      isUsed :: GHC.CoreBind -> Bool
-      isUsed = varAppearsInBind (getBindTopVar target)
+    isUsed :: GHC.CoreBind -> Bool
+    isUsed = varAppearsInBind (getBindTopVar target)

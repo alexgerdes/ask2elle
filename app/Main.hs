@@ -3,14 +3,22 @@ module Main (main) where
 import Data.ByteString qualified as BS
 import Data.Text.Encoding qualified as T
 import Data.Text.IO qualified as T
-import System.IO 
-import Helium.Helium
-import Helium.Utility.Compile (AskelleOptions (..), askelleDefaultOptions)
-import Helium.Utility.PrettyPrinter
-import GhcLib.Compile.Compile (compileToCore)
-import GhcLib.Analysis.TestHoleMapping (analyzeAll)
-import GhcLib.Analysis.Analysis(analysisEntryPoint)
+import System.IO
+import Text.Tabular.AsciiArt
+
+-- import Helium.Helium
+-- import Helium.Utility.Compile (AskelleOptions (..), askelleDefaultOptions)
+-- import Helium.Utility.PrettyPrinter
+
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
+import Data.List (permutations)
+import GhcLib.Analysis.Analysis
+import GhcLib.Analysis.Draw
+import GhcLib.Analysis.TestHoleMapping
+import GhcLib.Compile.Compile
+import GhcLib.Transform.Transform
+
+-- >>> allCombinations [1,2,3]
 
 -- main :: IO ()
 -- main = do
@@ -22,12 +30,29 @@ import Control.Monad.Except (ExceptT, runExceptT, throwError)
 --             T.putStrLn errText
 --         Right a -> T.putStrLn $ ppModule a
 
-
 main :: IO ()
 main = do
-  -- let path = "./ghcTestCases/tasks/Factorial/shouldMatch/submitSolutions/Test1.hs"
-  -- code <- readFile' path 
-  -- result <- analysisEntryPoint "Factorial" "Test1" code
-  -- summarizeComparisonResult result
-  analyzeAll
-
+    -- let studentSolP= "./ghcTestCases/tasks/Duplicate/shouldMatch/submitSolutions/Test2.hs"
+    -- stdSolCode <- readFile' studentSolP
+    -- let modelSolP= "./ghcTestCases/tasks/Duplicate/modelSolutions/Mod3.hs"
+    -- modelSolCode <- readFile' modelSolP
+    -- result <- comparePrograms compSimplNormalised True ("Test2",stdSolCode) ("Mod3",modelSolCode)
+    -- print result
+    -- summarizeComparisonResult result
+    let allOptions =
+            [ (x, y) | x <- take 2 $ permutations allNormalizationOptions, y <- allPossiblePostNormalizationOptions
+            ]
+    testCount <-
+        mapM
+            ( \(normalChoice, postNormalChoice) -> do
+                putStrLn $
+                    "Performing analysis with normalization options: "
+                        ++ show normalChoice
+                        ++ " with post choice :"
+                        ++ show postNormalChoice
+                calculateRatio normalChoice postNormalChoice
+            )
+            allOptions
+    let table = render id id id $ example (length testCount) testCount
+    putStrLn table
+    pure ()

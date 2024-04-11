@@ -8,15 +8,20 @@ import Data.Text.Encoding qualified as T
 import System.FilePath
 import Test.Hspec
 
-
 import Helium.Helium
 import Helium.Utility.Compile
 
 -- | The main test function
 heliumTest :: IO ()
 heliumTest = do
-    runConduitRes $ sourceDirectoryDeep False "./heliumTestCases/Pass/" .| filterC (isExtensionOf ".hs") .| mapM_C (lift . typeChecking "Ok")
-    runConduitRes $ sourceDirectoryDeep False "./heliumTestCases/FailAsIntended/" .| filterC (isExtensionOf ".hs") .| mapM_C (lift . typeChecking "Error")
+    runConduitRes $
+        sourceDirectoryDeep False "./heliumTestCases/Pass/"
+            .| filterC (isExtensionOf ".hs")
+            .| mapM_C (lift . typeChecking "Ok")
+    runConduitRes $
+        sourceDirectoryDeep False "./heliumTestCases/FailAsIntended/"
+            .| filterC (isExtensionOf ".hs")
+            .| mapM_C (lift . typeChecking "Error")
   where
     typeChecking :: String -> FilePath -> IO ()
     typeChecking expectedOutput filepath = do
@@ -25,7 +30,9 @@ heliumTest = do
 
     predicate :: (String, T.Text) -> IO String
     predicate (baseName, content) = do
-        result <- compileCode (T.pack baseName) content $ askelleDefaultOptions{filterTypeSigs = False}
+        result <-
+            compileCode (T.pack baseName) content $
+                askelleDefaultOptions{filterTypeSigs = False}
         case result of
             Left (_errTyp, _errText) -> pure "Error"
             Right _a -> pure "Ok"

@@ -1,4 +1,4 @@
--- ! Right now this module is not needed 
+-- ! Right now this module is not needed
 
 -- {-# LANGUAGE BangPatterns #-}
 -- {-# LANGUAGE CPP #-}
@@ -189,7 +189,6 @@
 -- --         -- The graph may be disconnected and is unusable.
 -- --         setSession hsc_env { hsc_mod_graph = emptyMG }
 -- --         pure (errs, emptyMG)
-
 
 -- -- | Perform dependency analysis like 'depanal' but return a partial module
 -- -- graph even in the face of problems with some modules.
@@ -717,7 +716,6 @@
 --   = do modifySession discardIC
 --        return all_ok
 
-
 -- -- | Forget the current program, but retain the persistent info in HscEnv
 -- discardProg :: HscEnv -> HscEnv
 -- discardProg hsc_env
@@ -799,7 +797,6 @@
 --          -- interested.
 --        , Set.size mods_in_this_cycle < Set.size names_in_this_cycle]
 
-
 -- -- ---------------------------------------------------------------------------
 -- --
 -- -- | Unloading
@@ -829,15 +826,14 @@
 -- @
 --   stable m = stableObject m || stableBCO m
 
-  
 --   stableObject m =
---         all stableObject (imports m) 
---         -- * a module is stable if all importing modules are stable 
---         && old linkable does not exist, or is == on-disk .o 
---         -- ! shouldn't this be : old linkable exists 
---         && date(on-disk .o) > date(.hs) 
+--         all stableObject (imports m)
+--         -- * a module is stable if all importing modules are stable
+--         && old linkable does not exist, or is == on-disk .o
+--         -- ! shouldn't this be : old linkable exists
+--         && date(on-disk .o) > date(.hs)
 --         -- * the complied version of the module is newer than the source file
-  
+
 --   -- * byte-code objects (BCOs) produced for the GHC’s byte-code interpreter
 --   stableBCO m =
 --         -- * a module is stable if all importing modules are stable
@@ -875,7 +871,6 @@
 --   ( UniqSet ModuleName  -- stableObject
 --   , UniqSet ModuleName  -- stableBCO
 --   )
-
 
 -- checkStability
 --         :: HomePackageTable   -- HPT from last compilation
@@ -1058,7 +1053,6 @@
 --     -- What we use to limit parallelism with.
 --     par_sem <- liftIO $ newQSem n_jobs
 
-
 --     let updNumCapabilities = liftIO $ do
 --             n_capabilities <- getNumCapabilities
 --             n_cpus <- getNumProcessors
@@ -1112,7 +1106,6 @@
 --         home_mod_map =
 --             Map.fromList [ (mkBuildModule ms, (mvar, idx))
 --                          | ((ms,mvar,_),idx) <- comp_graph_w_idx ]
-
 
 --     liftIO $ label_self "main --make thread"
 
@@ -1193,7 +1186,6 @@
 --         -- interruptible). XXX: This is not ideal.
 --         ; killWorkers = MC.uninterruptibleMask_ . mapM_ killThread }
 
-
 --     -- Spawn the workers, making sure to kill them later. Collect the results
 --     -- of each compile.
 --     results <- liftIO $ MC.bracket spawnWorkers killWorkers $ \_ ->
@@ -1203,7 +1195,6 @@
 --             printLogs logger dflags log_queue
 --             result <- readMVar mvar
 --             if succeeded result then return (Just mod) else return Nothing
-
 
 --     -- Collect and return the ModSummaries of all the successful compiles.
 --     -- NB: Reverse this list to maintain output parity with the sequential upsweep.
@@ -1324,7 +1315,6 @@
 --     -- These two invariants have to be maintained to correctly build a
 --     -- compilation graph with one or more loops.
 
-
 --     -- The loop that this module will finish. After this module successfully
 --     -- compiles, this loop is going to get re-typechecked.
 --     let finish_loop :: Maybe [ModuleWithIsBoot]
@@ -1357,7 +1347,6 @@
 --             [ head loop | loop <- comp_graph_loops
 --                         , any (`Set.member` textual_deps) loop
 --                         , BuildModule_Module this_build_mod `notElem` loop ]
-
 
 --     let all_deps = foldl1 Set.union [textual_deps, int_loop_deps, ext_loop_deps]
 
@@ -1804,7 +1793,6 @@
 --                 debug_trace 5 (text "compiling mod:" <+> ppr this_mod_name)
 --                 compile_it Nothing SourceModified
 
-
 -- {- Note [-fno-code mode]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~
 -- GHC offers the flag -fno-code for the purpose of parsing and typechecking a
@@ -1852,19 +1840,29 @@
 
 -- Potential TODOS:
 -- ~~~~~
+
 -- * Remove -fwrite-interface and have interface files always written in -fno-code
+
 --   mode
+
 -- * Both .o and .dyn_o files are generated for template haskell, but we only need
+
 --   .dyn_o. Fix it.
+
 -- * In make mode, a message like
+
 --   Compiling A (A.hs, /tmp/ghc_123.o)
 --   is shown if downsweep enabled object code generation for A. Perhaps we should
 --   show "nothing" or "temporary object file" instead. Note that one
 --   can currently use -keep-tmp-files and inspect the generated file with the
 --   current behaviour.
+
 -- * Offer a -no-codedir command line option, and write what were temporary
+
 --   object files there. This would speed up recompilation.
+
 -- * Use existing object files (if they are up to date) instead of always
+
 --   generating temporary ones.
 -- -}
 
@@ -2192,7 +2190,6 @@
 --                 (text "Warning: {-# SOURCE #-} unnecessary in import of "
 --                  <+> quotes (ppr mod))
 
-
 -- -----------------------------------------------------------------------------
 -- --
 -- -- | Downsweep (dependency analysis)
@@ -2509,7 +2506,6 @@
 -- --         preimps@PreprocessedImports {..}
 -- --             <- getPreprocessedImports hsc_env src_fn mb_phase maybe_buf
 
-
 -- --         -- Make a ModLocation for this file
 -- --         location <- liftIO $ mkHomeModLocation (hsc_dflags hsc_env) pi_mod_name src_fn
 
@@ -2810,7 +2806,6 @@
 -- --           return (first (fmap pprError) mimps)
 -- --   return PreprocessedImports {..}
 
-
 -- -----------------------------------------------------------------------------
 -- --                      Error messages
 -- -----------------------------------------------------------------------------
@@ -2935,4 +2930,3 @@
 --     ppr_ms :: ModSummary -> SDoc
 --     ppr_ms ms = quotes (ppr (moduleName (ms_mod ms))) <+>
 --                 (parens (text (msHsFilePath ms)))
-

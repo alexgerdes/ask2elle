@@ -1,19 +1,29 @@
 {-# LANGUAGE OverloadedLists #-}
-module GhcLib.Utility.Flags (extFlags, unsetExtFlags, holeFlags, simplFlags, genFlags, unsetGenFlags, setWarnFlags, unsetWarnFlags) where
+
+module GhcLib.Utility.Flags
+    ( extFlags
+    , unsetExtFlags
+    , holeFlags
+    , simplFlags
+    , genFlags
+    , unsetGenFlags
+    , setWarnFlags
+    , unsetWarnFlags
+    ) where
 
 import GHC ()
-import qualified GHC.Driver.Session as GHC 
-import qualified GHC.LanguageExtensions.Type as GHC 
+import GHC.Driver.Session qualified as GHC
+import GHC.LanguageExtensions.Type qualified as GHC
 
+extFlags :: [GHC.Extension]
 
-extFlags ::  [GHC.Extension]
 -- | Extension flags to enable
 extFlags =
     [ -- Default types are no longer limited to Num
       GHC.ExtendedDefaultRules
     ]
 
-unsetExtFlags ::  [GHC.Extension]
+unsetExtFlags :: [GHC.Extension]
 
 -- | Extension flags to disable
 unsetExtFlags =
@@ -21,7 +31,7 @@ unsetExtFlags =
       GHC.MonomorphismRestriction
     ]
 
-holeFlags ::  [GHC.GeneralFlag]
+holeFlags :: [GHC.GeneralFlag]
 
 -- | General flags concerning typed holes
 holeFlags =
@@ -40,7 +50,7 @@ holeFlags =
     , GHC.Opt_UnclutterValidHoleFits
     ]
 
-simplFlags ::  [GHC.GeneralFlag]
+simplFlags :: [GHC.GeneralFlag]
 
 -- | Set flags for simplification pass
 simplFlags =
@@ -48,7 +58,7 @@ simplFlags =
     , GHC.Opt_EnableRewriteRules
     ]
 
-genFlags ::  [GHC.GeneralFlag]
+genFlags :: [GHC.GeneralFlag]
 
 -- | List of general flags to enable
 genFlags =
@@ -68,7 +78,7 @@ genFlags =
       GHC.Opt_AutoLinkPackages
     ]
 
-unsetGenFlags ::  [GHC.GeneralFlag]
+unsetGenFlags :: [GHC.GeneralFlag]
 
 -- | List of general flags to disable
 unsetGenFlags =
@@ -76,7 +86,7 @@ unsetGenFlags =
     , GHC.Opt_KeepOFiles
     ]
 
-setWarnFlags ::  [GHC.WarningFlag]
+setWarnFlags :: [GHC.WarningFlag]
 
 -- | List of warning flags to enable
 setWarnFlags =
@@ -87,7 +97,7 @@ setWarnFlags =
       GHC.Opt_WarnTypedHoles
     ]
 
-unsetWarnFlags ::  [GHC.WarningFlag]
+unsetWarnFlags :: [GHC.WarningFlag]
 
 -- | List of warning flags to disable
 unsetWarnFlags =

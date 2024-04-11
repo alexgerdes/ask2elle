@@ -1,7 +1,8 @@
 {-# OPTIONS_GHC -Wno-typed-holes #-}
-module Test3 where 
-    
-fromBin :: Num a => [a] -> a
+
+module Test3 where
+
+fromBin :: (Num a) => [a] -> a
 fromBin bits = foldl _ 0 bits
 
 {-

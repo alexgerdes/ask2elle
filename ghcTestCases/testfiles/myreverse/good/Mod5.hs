@@ -1,5 +1,5 @@
-module Mod5 where 
+module Mod5 where
 
 myreverse :: [a] -> [a]
 myreverse [] = []
-myreverse (x:xs) = myreverse xs ++ [x]
+myreverse (x : xs) = myreverse xs ++ [x]

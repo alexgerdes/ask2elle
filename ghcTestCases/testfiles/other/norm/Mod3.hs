@@ -1,7 +1,6 @@
-module Mod3 where 
+module Mod3 where
 
-f :: Int -> Bool 
-f x = case x of 
-    1 -> True  
-    _ -> False 
-    
+f :: Int -> Bool
+f x = case x of
+    1 -> True
+    _ -> False

@@ -1,7 +1,7 @@
-module Test7  where 
+module Test7 where
 
 myreverse :: [a] -> [a]
-myreverse = reverse' 
-    where reverse' [] = []
-          reverse' (x:xs) = reverse' xs ++ [x]
-
+myreverse = reverse'
+  where
+    reverse' [] = []
+    reverse' (x : xs) = reverse' xs ++ [x]

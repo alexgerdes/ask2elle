@@ -1,5 +1,4 @@
-module Test12 where 
+module Test12 where
 
-
-mysum :: Int -> Int -> Int 
-mysum x y = _ + _ 
+mysum :: Int -> Int -> Int
+mysum x y = _ + _

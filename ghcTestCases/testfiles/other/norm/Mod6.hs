@@ -1,5 +1,4 @@
-module Mod6 where 
+module Mod6 where
 
-
-palindrome :: Eq a => [a] -> Bool 
+palindrome :: (Eq a) => [a] -> Bool
 palindrome xs = xs == (reverse xs)

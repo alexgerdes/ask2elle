@@ -131,11 +131,25 @@ According to the hoogle page, by adding `Uniplate` instance supports, functions 
 
 
 --- 2024/03/24
-1. [x] I need a function that runs every student solution against model solutions and do a summary Done 
+1. [x] I need a function that runs every student solution against model solutions and do a summary 
    1. Summary in what format? What library is better for this purpose?
    2. Where should i put this function?
-2. [ ]  I need a function that try all possible normalizations and give a summary. 
+2. [x]  I need a function that try all possible normalizations and give a summary. 
 3. [x] A possible speedup for the testsuite of checking the validity of holemapping is load all model solutions upfront, even though the student solution could possibly not pass type checking. 
 4. [ ] Why is `analyzeAll` in `TestHoleMapping` so slow? Maybe we fire up a ghc instance for every file? 
    1. for instance, 5 model solutions, and 10 student solutions. we fire up 15 fifteen times 
-5. [ ]  
+5. [ ] check if there exists a flags for disabling builder/foldr 
+6. [x] look for proper way for type equivalence 
+   1. At least right now, it is not doing string comparison in string  
+7. [ ] discarding type evidence is not ideal, look for some unifiication solutions.
+   1. It turns out removing type evidence brings the most matched solutions
+   2. But still need an unification solution
+8. [ ] write a function that check when non-similar problem start to diverges  
+
+--- 2024/04/10
+1. [ ] I need a 
+   
+Notes :
+1. The transformation `RemoveTyEvidence` cannot be arbitrarily interleaved with other transformations, as it results in an invalid core representation 
+   1. If it is an unification algorithm, can it be interleaved with other transformation?
+2. The transformation `alphaRenaming` must be used in the last stage, prior to `RemoveTyEvidence`. 

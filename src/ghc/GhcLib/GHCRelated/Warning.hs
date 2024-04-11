@@ -100,7 +100,9 @@ instance Ord GHC.Severity where
 uniqWarns :: Warning -> Warning -> Bool
 
 -- | compare warnings based on getWarningReason and source location
-uniqWarns w w' = getWarningReason w == getWarningReason w' && getWarningSpan w == getWarningSpan w'
+uniqWarns w w' =
+    getWarningReason w == getWarningReason w'
+        && getWarningSpan w == getWarningSpan w'
 
 writeWarnings
     :: IORef [Warning]
@@ -116,7 +118,10 @@ writeWarnings
 -- | write warnings to IORef
 writeWarnings ref _ =
     \dflags getWarningReason getWarningSeverity warningSpan getWarningDoc -> do
-        modifyIORef ref (\xs -> GhcWarn getWarningReason getWarningSeverity warningSpan getWarningDoc : xs)
+        modifyIORef
+            ref
+            ( \xs -> GhcWarn getWarningReason getWarningSeverity warningSpan getWarningDoc : xs
+            )
         noAction dflags getWarningReason getWarningSeverity warningSpan getWarningDoc
 
 -- replace noAction with defaultLogAction to output errors and warnings to stdout/stderr

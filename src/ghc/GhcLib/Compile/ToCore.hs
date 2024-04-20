@@ -1,5 +1,5 @@
-{-# LANGUAGE RankNTypes #-}
 
+{-# LANGUAGE DuplicateRecordFields #-}
 module GhcLib.Compile.ToCore where
 
 import GHC qualified
@@ -53,47 +53,48 @@ import GhcLib.Transform.Transform
 import GhcLib.Utility.Flags
 
 newtype ToCoreInput = ToCoreInput {
-    getToCoreInput :: NonEmptyList.NonEmpty ToCoreOption
+    getToCoreInput :: [ToCoreProgram]
 } deriving stock (Show)
 
 
-data ToCoreOption = ToCoreOption
-    { compilingProgram :: GHC.StringBuffer
-    , compilingModuleName :: String
+data ToCoreProgram = ToCoreProgram
+    { compilingModuleName :: String
+    , compilingProgram :: GHC.StringBuffer
     }
     deriving stock (Show)
 
-data ToCoreOutput = ToCoreOutput
-    { resultCoreProgram :: GHC.CoreProgram
-    , parsedModule :: GHC.ParsedSource
+newtype ToCoreOutput = ToCoreOutput [ToCoreOutput']
+
+data ToCoreOutput' = ToCoreOutput'
+    { compiledCoreProgram :: GHC.CoreProgram
+    , parsedSourceProgram :: GHC.ParsedSource
     , alphaRenamingMapping :: Map.Map GHC.Var GHC.Var
-    , studentExerciseName :: String
+    , compliedModuleName :: String
     }
 
-data ToCoreError
-    = FailedUnloading
-    | FailedLoading
+
+data ToCoreError  = 
+    FailedUnloading 
+    | FailedLoading 
     | NotInsideModuleGraph String
-    | ParsingError GHC.ErrorMessages
-    | TypecheckingError GHC.ErrorMessages
+    | ParsingError  {
+        parseErrorMessage :: GHC.ErrorMessages
+        } 
+    | TypecheckingError {
+        tcErrorMessage :: GHC.ErrorMessages
+        }  
     deriving stock (Show)
 
 instance Exception ToCoreError
 
--- newtype ToCore a = MkToCore {runToCore :: GHC.GhcT (ExceptT ToCoreError IO) a}
---     deriving newtype (Functor, Applicative, Monad, MonadIO,GHC.HasDynFlags, GHCLogger.HasLogger)
---     deriving (MonadThrow, MonadCatch, MonadMask) via (ReaderT GHC.Session (ExceptT ToCoreError IO))
---     deriving newtype (GHC.GhcMonad)
-
--- newtype Wrapper a = MkWrapper {runWrapper :: ReaderT ToCoreOption ToCore a }
 
 newtype ToCore a = MkToCore
-    {runToCore :: GHC.GhcT (ReaderT ToCoreOption (ExceptT ToCoreError IO)) a}
+    {runToCore :: GHC.GhcT (ReaderT ToCoreInput (ExceptT ToCoreError IO)) a}
     deriving newtype
         (Functor, Applicative, Monad, MonadIO, GHC.HasDynFlags, GHCLogger.HasLogger)
     deriving
         (MonadThrow, MonadCatch, MonadMask)
-        via (ReaderT GHC.Session (ReaderT ToCoreOption (ExceptT ToCoreError IO)))
+        via (ReaderT GHC.Session (ReaderT ToCoreInput (ExceptT ToCoreError IO)))
     deriving newtype (GHC.GhcMonad)
 
 setExtensionFlag' :: GHC.Extension -> GHC.DynFlags -> GHC.DynFlags
@@ -184,7 +185,7 @@ setFlags b flags = do
 -- mapM_ (\flag -> liftIO $ print $ show flag) $ GHCEnumSet.toList $ GHCEnumSet.difference currFatalFlags existingFatalFlags
 
 -- | ghc loads the target file
-loadWithoutPlugins :: GHC.Target -> ToCore ()
+loadWithoutPlugins :: [GHC.Target] -> ToCore ()
 loadWithoutPlugins targetFile = do
     -- first unload all the files (like GHCi :load does)
     GHC.setTargets []
@@ -197,8 +198,8 @@ loadWithoutPlugins targetFile = do
     -- traceM $ "Trace point : " ++ (show $ GHC.outputFile_ dflags)
     -- Nothing
     -- GHC.setSessionDynFlags dflags{GHC.outputFile_ = Nothing}
-    GHC.setTargets [targetFile]
-    hsFile <- liftToCore $ asks compilingModuleName
+    GHC.setTargets targetFile
+    moduleNames <- fmap compilingModuleName <$> liftToCore (asks getToCoreInput)
     -- \* The following only perform dependency analysis
     maybeLoaded <-
         GHC.handleSourceError
@@ -206,7 +207,7 @@ loadWithoutPlugins targetFile = do
             (Right <$> GHC.depanalE [] False)
     guardS
         (isRight maybeLoaded)
-        (fromString $ "Error : Failed to parse " ++ hsFile)
+        (fromString $ "Error : Failed to parse " ++ show moduleNames)
         (ParsingError $ fromLeft GHC.emptyBag maybeLoaded)
 
 -- guardS (GHC.succeeded $ fromRight GHC.Succeeded maybeLoaded) (fromString $ "Error : Failed to load target : " ++ targetFP) FailedLoading
@@ -305,118 +306,124 @@ loadWithoutPlugins targetFile = do
 --                    | otherwise  = upsweep
 --     pure ()
 
-initEnv :: Bool -> [GHC.GeneralFlag] -> ToCore (IORef [Warning])
+initEnv :: Bool -> [GHC.GeneralFlag] -> ToCore ()
 initEnv keepDefaultFlags flags = do
-    solution <- liftToCore $ asks compilingProgram
-    exerciseName <- liftToCore $ asks compilingModuleName
+    inputPrograms <- liftToCore $ asks getToCoreInput
+    -- solution <- liftToCore $ asks compilingProgram
+    -- exerciseName <- liftToCore $ asks compilingModuleName
     setFlags keepDefaultFlags flags
-    -- logger <- GHC.getLogger
-    -- ! Not sure whether we need this in the future
-    ref <- liftIO (newIORef [])
-    -- in case of logging, also write it to the IORef
-    GHC.pushLogHookM (writeWarnings ref)
-    -- target <- GHC.guessTarget hsFilePath Nothing
-    -- (Target (TargetFile str (Just phase)) True Nothing)
     complieTime <- liftIO getCurrentTime
-    let target =
-            GHC.Target (GHC.TargetFile "NeverExistedLocalFile.hs" Nothing) True $
-                Just (solution, complieTime)
-    loadWithoutPlugins target
-    return ref
+    let targets = map (\(ToCoreProgram modName prog) ->
+            GHC.Target (GHC.TargetFile "NeverExistedLocalFile.hs" Nothing) True $ Just (prog, complieTime))  inputPrograms
+    loadWithoutPlugins targets
+
 
 desugarToCore
-    :: Bool -> [GHC.GeneralFlag] -> ToCore (GHC.ModGuts, GHC.ParsedSource)
+    :: Bool -> [GHC.GeneralFlag] -> ToCore [(GHC.ModGuts, GHC.ParsedSource)]
 
 -- | Compile a haskell file to the desugar pass + simple optimiser and return Modguts and warnings
 desugarToCore keepExistingFlags flags = do
-    hsFile <- liftToCore $ asks compilingModuleName
-    ref <- initEnv keepExistingFlags flags
-    -- \* Check target exists in the module graph
-    modSum <- getMaybeSModSummary $ GHC.mkModuleName hsFile
-    guardS
-        (isJust modSum)
-        (fromString $ "Error : " ++ hsFile ++ " is not part of the module graph")
-        $ NotInsideModuleGraph hsFile
-    -- \* If target exists in the module graph, it should have already been a well-parsed mod
-    eitherParsed <-
-        GHC.handleSourceError
-            (pure . Left . GHC.srcErrorMessages)
-            (Right <$> GHC.parseModule (fromJust modSum))
-    guardS
-        (isRight eitherParsed)
-        (fromString $ "Error : Failed to parse " ++ hsFile)
-        (ParsingError $ fromLeft GHC.emptyBag eitherParsed)
-    -- \* Checking if the module is well-typed
-    let safeParseResult =
-            fromRight
-                ( error
-                    "Impossible : This shoud be a Right parsed module value, but received a Left"
-                )
-                eitherParsed
-    eitherTyped <-
-        GHC.handleSourceError
-            (pure . Left . GHC.srcErrorMessages)
-            (Right <$> GHC.typecheckModule safeParseResult)
-    guardS
-        (isRight eitherTyped)
-        (fromString $ "Error : Failed to type check " ++ hsFile)
-        (TypecheckingError $ fromLeft GHC.emptyBag eitherTyped)
-    -- \* Desugaring the typechecked module
-    let typecheckedResult =
-            fromRight
-                (error "Impossible : shoud be a Right well-typed value, but received a Left")
-                eitherTyped
-    desugaredMod <- GHC.desugarModule typecheckedResult
-    let coreMod = GHC.dm_core_module desugaredMod
-    -- -- * Print the core module
-    -- liftIO $ putStrLn "Core Module : "
-    -- liftIO $ putStrLn $ show $ GHC.mg_binds coreMod
-    -- liftIO $ putStrLn "\n------------------------------------"
-    -- liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr $ GHC.mg_binds coreMod)
-    -- liftIO $ putStrLn "\n------------------------------------"
-    return (coreMod, GHC.pm_parsed_source safeParseResult)
+    moduleNames <- fmap compilingModuleName <$> liftToCore (asks getToCoreInput)
+    initEnv keepExistingFlags flags
+    mapM corePipeline moduleNames
+    where
+        corePipeline :: String -> ToCore (GHC.ModGuts,GHC.ParsedSource)
+        corePipeline moduleName = do
+            -- \* Double Check target exists in the module graph
+            modSum <- getMaybeSModSummary $ GHC.mkModuleName moduleName
+            guardS
+                (isJust modSum)
+                (fromString $ "Error : " ++ moduleName ++ " is not part of the module graph")
+                $ NotInsideModuleGraph moduleName
+            -- \* If target exists in the module graph, it should have already been a well-parsed mod
+            eitherParsed <-
+                GHC.handleSourceError
+                    (pure . Left . GHC.srcErrorMessages)
+                    (Right <$> GHC.parseModule (fromJust modSum))
+            guardS
+                (isRight eitherParsed)
+                (fromString $ "Error : Failed to parse " ++ moduleName)
+                (ParsingError $ fromLeft GHC.emptyBag eitherParsed)
+            -- \* Checking if the module is well-typed
+            let safeParseResult =
+                    fromRight
+                        ( error
+                            "Impossible : This shoud be a Right parsed module value, but received a Left"
+                        )
+                        eitherParsed
+            eitherTyped <-
+                GHC.handleSourceError
+                    (pure . Left . GHC.srcErrorMessages)
+                    (Right <$> GHC.typecheckModule safeParseResult)
+            guardS
+                (isRight eitherTyped)
+                (fromString $ "Error : Failed to type check " ++ moduleName)
+                (TypecheckingError $ fromLeft GHC.emptyBag eitherTyped)
+            -- \* Desugaring the typechecked module
+            let typecheckedResult =
+                    fromRight
+                        (error "Impossible : shoud be a Right well-typed value, but received a Left")
+                        eitherTyped
+            desugaredMod <- GHC.desugarModule typecheckedResult
+            let coreMod = GHC.dm_core_module desugaredMod
+            -- -- * Print the core module
+            -- liftIO $ putStrLn "Core Module : "
+            -- liftIO $ putStrLn $ show $ GHC.mg_binds coreMod
+            -- liftIO $ putStrLn "\n------------------------------------"
+            -- liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr $ GHC.mg_binds coreMod)
+            -- liftIO $ putStrLn "\n------------------------------------"
+            return (coreMod, GHC.pm_parsed_source safeParseResult)
 
-desugarPreprocess :: ToCore (GHC.CoreProgram, GHC.ParsedSource)
+desugarPreprocess :: ToCore [(GHC.CoreProgram, GHC.ParsedSource)]
 
 -- |  a haskell file -> desugar pass(including simple optimiser) -> handling type hole error
 desugarPreprocess = do
-    (mgCore, parsedSourceCode) <- desugarToCore False (holeFlags ++ genFlags)
+    desugaredCorePrograms <- desugarToCore False (holeFlags ++ genFlags)
+    -- ^  [(GHC.ModGuts, GHC.ParsedSource)]
     uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
-    let prog = preProcess uniqHoleSupply $ GHC.mg_binds mgCore
-    return (prog, parsedSourceCode)
+    let preprocessedCorePrograms =  fmap (preProcess uniqHoleSupply . GHC.mg_binds . fst) desugaredCorePrograms
+    return $ zip preprocessedCorePrograms (snd <$> desugaredCorePrograms)
 
-desugarPreprocessSimplification :: ToCore (GHC.CoreProgram, GHC.ParsedSource)
-
+desugarPreprocessSimplification :: ToCore [(GHC.CoreProgram, GHC.ParsedSource)]
 -- |  a haskell file -> desugar pass(including simple optimiser) -> handling type hole error -> core-to-core simplification
 desugarPreprocessSimplification = do
-    (mgCore, psrc) <- desugarToCore False (holeFlags ++ genFlags ++ simplFlags)
+    desugaredCorePrograms <- desugarToCore False (holeFlags ++ genFlags)
     env <- GHC.getSession
     uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
-    let prog = preProcess uniqHoleSupply (GHC.mg_binds mgCore)
+    -- let prog = preProcess uniqHoleSupply (GHC.mg_binds mgCore)
+    let modGuts = fmap fst desugaredCorePrograms
+    let parsedPrograms = fmap snd desugaredCorePrograms
+    let preprocessedCorePrograms =  fmap (preProcess uniqHoleSupply . GHC.mg_binds ) modGuts
     -- ! Need to examine the utility of core2core
-    mgSimpl <- liftIO $ GHC.core2core env (mgCore{GHC.mg_binds = prog})
-    return (GHC.mg_binds mgSimpl, psrc)
+    newModGuts <- mapM (\(modGut,preprocessed) -> liftIO $ GHC.core2core env (modGut{GHC.mg_binds = preprocessed})) $ zip modGuts preprocessedCorePrograms
+    pure $ zip (fmap GHC.mg_binds newModGuts) parsedPrograms
 
 desugarPreprocessNormalize
-    :: ToCore (GHC.CoreProgram, GHC.ParsedSource, Map.Map GHC.Var GHC.Var)
+    :: ToCore [(GHC.CoreProgram, GHC.ParsedSource, Map.Map GHC.Var GHC.Var)]
 
 -- |  a haskell file -> desugar pass(including simple optimiser) -> handling type hole error -> normalization
 desugarPreprocessNormalize = do
-    (mgCore, parsedSourceCode) <- desugarToCore False (holeFlags ++ genFlags)
+    -- (mgCore, parsedSourceCode) <- desugarToCore False (holeFlags ++ genFlags)
+    desugaredCorePrograms <- desugarToCore False (holeFlags ++ genFlags)
     uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
-    let prog = preProcess uniqHoleSupply $ GHC.mg_binds mgCore
+    -- let prog = preProcess uniqHoleSupply $ GHC.mg_binds mgCore
+    let modGuts = fmap fst desugaredCorePrograms
+    let parsedPrograms = fmap snd desugaredCorePrograms
+    let preprocessedCorePrograms =  fmap (preProcess uniqHoleSupply . GHC.mg_binds ) modGuts
+
     uniqTopLevelLetRecSupply <- liftIO $ GHC.mkSplitUniqSupply 'R'
-    fnName <- liftToCore $ asks compilingModuleName
-    let (normalizedProg, alphaRenamingMapping) = normalise fnName uniqTopLevelLetRecSupply prog
+    --  fnName <- liftToCore $ asks compilingModuleName
+    moduleNames <- fmap compilingModuleName <$> liftToCore (asks getToCoreInput)
+    let (normalizedPrograms,alphaRenamings) = unzip $ zipWith (normalise uniqTopLevelLetRecSupply) moduleNames preprocessedCorePrograms
     -- liftIO $ putStrLn $ show normalizedProg
     -- liftIO $ putStrLn "\n------------------------------------"
     -- liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr normalizedProg)
-    let removedTypeEvidence = removeTyEvidence normalizedProg
+    let removedTypeEvidence = fmap removeTyEvidence normalizedPrograms
     -- liftIO $ putStrLn "\n--------------Removed Evidence---------------------"
     -- liftIO $ putStrLn $ show removedTypeEvidence
     -- liftIO $ putStrLn "\n------------------------------------"
     -- liftIO $ GHC.printSDoc GHC.defaultSDocContext GHC.ZigZagMode stdout (GHC.ppr removedTypeEvidence)
-    return (prog, parsedSourceCode, alphaRenamingMapping)
+    return $ zip3 removedTypeEvidence parsedPrograms alphaRenamings
 
 libDirPath :: IO FilePath
 libDirPath = init <$> readProcess "ghc" ["--print-libdir"] ""
@@ -432,5 +439,5 @@ guardS False sdoc errorType = do
         GHCLogger.defaultLogAction dynflags GHC.NoReason GHC.SevInfo GHC.noSrcSpan sdoc
     liftToCore $ throwError errorType
 
-liftToCore :: ReaderT ToCoreOption (ExceptT ToCoreError IO) a -> ToCore a
+liftToCore :: ReaderT ToCoreInput (ExceptT ToCoreError IO) a -> ToCore a
 liftToCore f = MkToCore $ GHC.liftGhcT f

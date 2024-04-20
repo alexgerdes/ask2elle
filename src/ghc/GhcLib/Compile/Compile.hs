@@ -47,45 +47,47 @@ import GhcLib.Transform.Remove
 import GhcLib.Transform.Rename (alpha)
 import GhcLib.Transform.Transform
 import GhcLib.Utility.Flags
+import Data.List (zip4, zipWith4)
 
 -- | The type of the function that compiles a program to Core.
 --    | It takes an exercise name and a solution, both have the type of String and passed to the ReaderT as configuration.
 type CompileFunction =
-    ReaderT ToCoreOption (ExceptT ToCoreError IO) ToCoreOutput
+    ReaderT ToCoreInput (ExceptT ToCoreError IO) ToCoreOutput
 
 -- | The entry point for compilation to Core.
 --    | This function takes an exercise name and a solution, both have the type of String.AskelleOptions
 compileToCore
-    :: String -> String -> CompileFunction -> ExceptT ToCoreError IO ToCoreOutput
-compileToCore exerciseName inputSolution f = do
-    solution <-
-        liftIO $
-            GHC.appendStringBuffers (GHC.stringToStringBuffer inputSolution) fusionRule
-    runReaderT f $ ToCoreOption solution exerciseName
+    :: [(String,String)] -> CompileFunction -> ExceptT ToCoreError IO ToCoreOutput
+compileToCore pairOfModuleNameAndSolution f = do
+    solutions <- mapM (\(moduleName,solution) -> do
+        newSolution <- liftIO $ GHC.appendStringBuffers (GHC.stringToStringBuffer solution) fusionRule
+        pure (moduleName, newSolution)) pairOfModuleNameAndSolution
+    runReaderT f $ ToCoreInput $ map  (uncurry ToCoreProgram) solutions
 
-compSimplNormalised :: ReaderT ToCoreOption (ExceptT ToCoreError IO) ToCoreOutput
--- | Desugar, preprocess and simplify the program, then normalise it
-compSimplNormalised = do
-    libDirPath' <- liftIO libDirPath
-    GHC.defaultErrorHandler
-        GHC.defaultFatalMessager
-        GHC.defaultFlushOut
-        $ GHC.runGhcT (Just libDirPath')
-        $ runToCore
-        $ do
-            (coreProg, parsedSource) <- desugarPreprocessSimplification
-            uniqTopLevelLetRecSupply <- liftIO $ GHC.mkSplitUniqSupply 'R'
-            fnName <- liftToCore $ asks compilingModuleName
-            let (normalizedProg, alphaRenamingMapping) = normalise fnName uniqTopLevelLetRecSupply coreProg
-            exerciseName <- liftToCore $ asks compilingModuleName
-            let removedTyEvidenceProg = removeTyEvidence normalizedProg
-            return $ ToCoreOutput removedTyEvidenceProg parsedSource alphaRenamingMapping exerciseName
+-- compSimplNormalised :: ReaderT ToCoreInput (ExceptT ToCoreError IO) ToCoreOutput
+-- -- | Desugar, preprocess and simplify the program, then normalise it
+-- compSimplNormalised = do
+--     libDirPath' <- liftIO libDirPath
+--     GHC.defaultErrorHandler
+--         GHC.defaultFatalMessager
+--         GHC.defaultFlushOut
+--         $ GHC.runGhcT (Just libDirPath')
+--         $ runToCore
+--         $ do
+--             results <- desugarPreprocessSimplification
+--             -- ^ [(coreProg, parsedSource)]
+--             uniqTopLevelLetRecSupply <- liftIO $ GHC.mkSplitUniqSupply 'R'
+--             fnName <- liftToCore $ asks compilingModuleName
+--             let (normalizedProg, alphaRenamingMapping) = normalise fnName uniqTopLevelLetRecSupply coreProg
+--             exerciseName <- liftToCore $ asks compilingModuleName
+--             let removedTyEvidenceProg = removeTyEvidence normalizedProg
+--             return $ ToCoreOutput removedTyEvidenceProg parsedSource alphaRenamingMapping exerciseName
 
 
 parameterizedCompSimplNormalized
     :: [NormalizationOption]
     -> [PostNormalizationOption]
-    -> ReaderT ToCoreOption (ExceptT ToCoreError IO) ToCoreOutput
+    -> ReaderT ToCoreInput (ExceptT ToCoreError IO) ToCoreOutput
 parameterizedCompSimplNormalized normalizationChoice postNormalizationChoice = do
     libDirPath' <- liftIO libDirPath
     GHC.defaultErrorHandler
@@ -94,74 +96,83 @@ parameterizedCompSimplNormalized normalizationChoice postNormalizationChoice = d
         $ GHC.runGhcT (Just libDirPath')
         $ runToCore
         $ do
-            (coreProg, parsedSource) <- desugarPreprocessSimplification
+            result <- desugarPreprocessSimplification
+            -- ^ [(coreProg, parsedSource)]
+            let coreProgs = fmap fst result
+            let parsedSource = fmap snd result
             uniqTopLevelLetRecSupply <- liftIO $ GHC.mkSplitUniqSupply 'R'
-            task <- liftToCore $ asks compilingModuleName
+            -- task <- liftToCore $ asks compilingModuleName
+            moduleNames <- fmap compilingModuleName <$> liftToCore (asks getToCoreInput)
             env <- GHC.getSession
-            let normalizationOptions = normalizationOption task uniqTopLevelLetRecSupply env
-            let normalizedProg = performNormalizationOptions normalizationChoice normalizationOptions coreProg
-            let postNormalizedProg =
-                    performPostNormalizationOptions
+            let normalizationOptions' = normalizationOption (head moduleNames) uniqTopLevelLetRecSupply env
+            let normalizationOptions = fmap (\moduleName -> normalizationOption moduleName uniqTopLevelLetRecSupply env) moduleNames
+
+            --let normalizedProg = performNormalizationOptions normalizationChoice normalizationOptions' coreProgs
+            let normalizeProgs = zipWith (performNormalizationOptions normalizationChoice) normalizationOptions coreProgs
+            let postNormalizeProgs = map (performPostNormalizationOptions
                         postNormalizationChoice
-                        postNormalizationOption
-                        normalizedProg
-            let (alphaedProg, alphaMapping) = alpha task postNormalizedProg
-            return $ ToCoreOutput alphaedProg parsedSource alphaMapping task
+                        postNormalizationOption) normalizeProgs
 
-compDesPreNormalised
-    :: ReaderT ToCoreOption (ExceptT ToCoreError IO) ToCoreOutput
+            ---let (alphaedProg, alphaMapping) = alpha task postNormalizedProg
+            let alphaResult = zipWith alpha moduleNames postNormalizeProgs
+            let alphaedProg = fmap fst alphaResult
+            let alphaMapping = fmap snd alphaResult
+            return $ ToCoreOutput $ zipWith4 ToCoreOutput' alphaedProg parsedSource alphaMapping moduleNames
 
--- | Desugar, preprocess and normalise the program
-compDesPreNormalised = do
-    libDirPath' <- liftIO libDirPath
-    GHC.defaultErrorHandler
-        GHC.defaultFatalMessager
-        GHC.defaultFlushOut
-        $ GHC.runGhcT (Just libDirPath')
-        $ runToCore
-        $ do
-            (coreProg, parsedSource, alphaRenamingMapping) <- desugarPreprocessNormalize
-            exerciseName <- liftToCore $ asks compilingModuleName
-            return $ ToCoreOutput coreProg parsedSource alphaRenamingMapping exerciseName
+-- compDesPreNormalised
+--     :: ReaderT ToCoreInput (ExceptT ToCoreError IO) ToCoreOutput
 
-compSimpl :: ReaderT ToCoreOption (ExceptT ToCoreError IO) ToCoreOutput
+-- -- | Desugar, preprocess and normalise the program
+-- compDesPreNormalised = do
+--     libDirPath' <- liftIO libDirPath
+--     GHC.defaultErrorHandler
+--         GHC.defaultFatalMessager
+--         GHC.defaultFlushOut
+--         $ GHC.runGhcT (Just libDirPath')
+--         $ runToCore
+--         $ do
+--             (coreProg, parsedSource, alphaRenamingMapping) <- desugarPreprocessNormalize
+--             exerciseName <- liftToCore $ asks compilingModuleName
+--             return $ ToCoreOutput coreProg parsedSource alphaRenamingMapping exerciseName
 
--- | Desugar, preprocess, simplify the program, alpha renaming
-compSimpl = do
-    libDirPath' <- liftIO libDirPath
-    GHC.defaultErrorHandler
-        GHC.defaultFatalMessager
-        GHC.defaultFlushOut
-        $ GHC.runGhcT (Just libDirPath')
-        $ runToCore
-        $ do
-            (coreProg, parsedSource) <- desugarPreprocessSimplification
-            exerciseName <- liftToCore $ asks compilingModuleName
-            let (coreProg', alphaRenamingMapping) = alpha exerciseName coreProg
-            return $
-                ToCoreOutput
-                    (removeTyEvidence coreProg')
-                    parsedSource
-                    alphaRenamingMapping
-                    exerciseName
+-- compSimpl :: ReaderT ToCoreInput (ExceptT ToCoreError IO) ToCoreOutput
 
-compDesugar :: ReaderT ToCoreOption (ExceptT ToCoreError IO) ToCoreOutput
+-- -- | Desugar, preprocess, simplify the program, alpha renaming
+-- compSimpl = do
+--     libDirPath' <- liftIO libDirPath
+--     GHC.defaultErrorHandler
+--         GHC.defaultFatalMessager
+--         GHC.defaultFlushOut
+--         $ GHC.runGhcT (Just libDirPath')
+--         $ runToCore
+--         $ do
+--             (coreProg, parsedSource) <- desugarPreprocessSimplification
+--             exerciseName <- liftToCore $ asks compilingModuleName
+--             let (coreProg', alphaRenamingMapping) = alpha exerciseName coreProg
+--             return $
+--                 ToCoreOutput
+--                     (removeTyEvidence coreProg')
+--                     parsedSource
+--                     alphaRenamingMapping
+--                     exerciseName
 
--- | Desugar, preprocess the program, alpha renaming
-compDesugar = do
-    libDirPath' <- liftIO libDirPath
-    GHC.defaultErrorHandler
-        GHC.defaultFatalMessager
-        GHC.defaultFlushOut
-        $ GHC.runGhcT (Just libDirPath')
-        $ runToCore
-        $ do
-            (coreProg, parsedSource) <- desugarPreprocess
-            exerciseName <- liftToCore $ asks compilingModuleName
-            let (coreProg', alphaRenamingMapping) = alpha exerciseName coreProg
-            return $
-                ToCoreOutput
-                    (removeTyEvidence coreProg')
-                    parsedSource
-                    alphaRenamingMapping
-                    exerciseName
+-- compDesugar :: ReaderT ToCoreInput (ExceptT ToCoreError IO) ToCoreOutput
+
+-- -- | Desugar, preprocess the program, alpha renaming
+-- compDesugar = do
+--     libDirPath' <- liftIO libDirPath
+--     GHC.defaultErrorHandler
+--         GHC.defaultFatalMessager
+--         GHC.defaultFlushOut
+--         $ GHC.runGhcT (Just libDirPath')
+--         $ runToCore
+--         $ do
+--             (coreProg, parsedSource) <- desugarPreprocess
+--             exerciseName <- liftToCore $ asks compilingModuleName
+--             let (coreProg', alphaRenamingMapping) = alpha exerciseName coreProg
+--             return $
+--                 ToCoreOutput
+--                     (removeTyEvidence coreProg')
+--                     parsedSource
+--                     alphaRenamingMapping
+--                     exerciseName

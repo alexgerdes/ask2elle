@@ -155,3 +155,7 @@ Notes :
 1. The transformation `RemoveTyEvidence` cannot be arbitrarily interleaved with other transformations, as it results in an invalid core representation 
    1. If it is an unification algorithm, can it be interleaved with other transformation?
 2. The transformation `alphaRenaming` must be used in the last stage, prior to `RemoveTyEvidence`. 
+
+
+cabal run ask2elle -- +RTS -rtsopts -eventlog -O2 -RTS
+ eventlog2html ask2elle.eventlog -o ask2elle.eventlog.html

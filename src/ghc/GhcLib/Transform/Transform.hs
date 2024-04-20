@@ -37,14 +37,14 @@ preProcess :: GHC.UniqSupply -> GHC.CoreProgram -> GHC.CoreProgram
 preProcess identSupply p = replacePatErrors $ replaceHoles identSupply p
 
 normalise
-    :: String
-    -> GHC.UniqSupply
+    :: GHC.UniqSupply 
+    -> String
     -> GHC.CoreProgram
     -> (GHC.CoreProgram, Map.Map GHC.Var GHC.Var)
 
 -- | Normalising transformations
 -- normalise name letRecSupply prog = recToLetRec letRecSupply $ inlineBinds name prog
-normalise exerciseName letRecSupply prog =
+normalise letRecSupply exerciseName prog =
     let inlineTopBinds = inlineBinds exerciseName prog
         recusiveToLetRec = recToLetRec letRecSupply inlineTopBinds
         removeEqCheck = removeRedundantEqCheck recusiveToLetRec

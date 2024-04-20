@@ -31,14 +31,14 @@ import GhcLib.Transform.Transform
 --         Right a -> T.putStrLn $ ppModule a
 
 
-printOutTargetCore :: IO ()
-printOutTargetCore = do
-    let studentSolP= "./ghcTestCases/tasks/Duplicate/shouldMatch/submitSolutions/Test2.hs"
-    stdSolCode <- readFile' studentSolP
-    let modelSolP= "./ghcTestCases/tasks/Duplicate/modelSolutions/Mod3.hs"
-    modelSolCode <- readFile' modelSolP
-    result <- comparePrograms compDesugar True ("Test2",stdSolCode) ("Mod3",modelSolCode)
-    print result
+-- printOutTargetCore :: IO ()
+-- printOutTargetCore = do
+--     let studentSolP= "./ghcTestCases/tasks/Duplicate/shouldMatch/submitSolutions/Test2.hs"
+--     stdSolCode <- readFile' studentSolP
+--     let modelSolP= "./ghcTestCases/tasks/Duplicate/modelSolutions/Mod3.hs"
+--     modelSolCode <- readFile' modelSolP
+--     result <- comparePrograms compDesugar True ("Test2",stdSolCode) ("Mod3",modelSolCode)
+--     print result
 
 main :: IO ()
 main = do

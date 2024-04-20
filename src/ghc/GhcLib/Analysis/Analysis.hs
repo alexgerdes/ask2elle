@@ -94,13 +94,18 @@ comparePrograms
 -- | This function prints the core output of both solutions to the current directory
 comparePrograms compileFun expectedResult (stdModuleName, studentSolution) (modelModuleName, modelSolution) = do
     stdSolCompOutput <-
-        runExceptT $ compileToCore stdModuleName studentSolution compileFun
+        runExceptT $ compileToCore [(stdModuleName,studentSolution)] compileFun
     modelSolCompOutput <-
-        runExceptT $ compileToCore modelModuleName modelSolution compileFun
+        runExceptT $ compileToCore [(modelModuleName,modelSolution)] compileFun
+    -- ^ Above two determine the compilation results are singleton lists
     case (stdSolCompOutput, modelSolCompOutput) of
         (Left _, _) -> pure StudentSolutionInvalid
         (Right _, Left _) -> pure ModelSolutionInvalid
-        (Right (ToCoreOutput stdCore _ _ _), Right (ToCoreOutput modelCore _ _ _)) -> do
+        (Right (ToCoreOutput studentSolution'), Right (ToCoreOutput modelSolution')) -> do
+            let studentSolution = head studentSolution'
+                modelSolution = head  modelSolution'
+                stdCore = compiledCoreProgram studentSolution
+                modelCore = compiledCoreProgram modelSolution
             printCore stdModuleName stdCore "./stdCore-output.hs"
             printCore modelModuleName modelCore "./modelCore-output.hs"
             let predecessor = stdCore ~> modelCore
@@ -164,55 +169,55 @@ analysisEntryPoint task f studentModuleName studentSolution = do
 analyze :: AnalysisInput -> CompileFunction -> IO ComparisonResult
 analyze (AnalysisInput task studentModuleName studentSolution modelSolutions) compileFun = do
     stdSolCompOutput <-
-        runExceptT $ compileToCore studentModuleName studentSolution compileFun
+        runExceptT $ compileToCore [(studentModuleName,studentSolution)] compileFun
     -- \^ compile student solution to core
     case stdSolCompOutput of
         Left toCoreErr ->
             pure $
                 ComparisonResult task studentSolution studentModuleName (Left toCoreErr) []
-        Right stdSolCompileOutpu@(ToCoreOutput stdCore _ _ _) -> do
-            comparisonResults <-
-                foldrM
-                    ( \(modelModuleName, modelSolution) acc -> do
-                        compOutput <-
-                            compareAgainstModel compileFun True stdCore (modelModuleName, modelSolution)
-                        pure $ compOutput : acc
-                    )
-                    []
-                    modelSolutions
-            pure $
-                ComparisonResult
-                    task
-                    studentSolution
-                    studentModuleName
-                    (Right stdSolCompileOutpu)
-                    comparisonResults
+        Right stdSolCompileOutpu@(ToCoreOutput studentSolutionOutput') -> do
+            let studentSolutionOutput = head studentSolutionOutput'
+                stdCore = compiledCoreProgram studentSolutionOutput
+            -- ^ This is always a singleton list for student solution
 
+            modelSolCompOutput <-
+                runExceptT $ compileToCore modelSolutions compileFun
+            
+            case modelSolCompOutput of 
+                Left _ -> pure undefined -- $ ComparisonResult task studentSolution studentModuleName (Right stdSolCompileOutpu) []
+                Right (ToCoreOutput modelSolutionsOutput) -> do
+                    let -- modelSolutionsOutput' = head modelSolutionsOutput
+                        compiledModelSolutions = fmap compiledCoreProgram modelSolutionsOutput
+                        modelModuleName = fmap fst modelSolutions
+                        comparisonResults = zipWith (compareAgainstModel True stdCore) modelModuleName compiledModelSolutions
+                    pure $
+                        ComparisonResult
+                            task
+                            studentSolution
+                            studentModuleName
+                            (Right stdSolCompileOutpu)
+                            comparisonResults
+
+-- | Compare the student solution against a model solution
 compareAgainstModel
-    :: CompileFunction
-    -> Bool
+    ::
+    Bool
     -> GHC.CoreProgram
-    -> (ExerciseName, String)
-    -> IO SingleComparisonResult
-compareAgainstModel compileFun expectedResult studentCoreProgram (modelModuleName, modelSolution) = do
-    modelSolCompOutput <-
-        runExceptT $ compileToCore modelModuleName modelSolution compileFun
-    case modelSolCompOutput of
-        (Left _) -> pure $ SingleComparisonResult modelModuleName Nothing ModelSolutionInvalid
-        (Right (ToCoreOutput modelCore _ _ _)) -> do
-            let predecessor = studentCoreProgram ~> modelCore
-                match = studentCoreProgram ~= modelCore
+    -> ExerciseName
+    -> GHC.CoreProgram
+    -> SingleComparisonResult
+compareAgainstModel expectedResult studentCoreProgram modelModuleName modelCoreProgram  = do
+            let predecessor = studentCoreProgram ~> modelCoreProgram
+                match = studentCoreProgram ~= modelCoreProgram
                 result = predecessor || match
             -- when (not result && expectedResult) $ putStrLn $ "Failed to match " ++ stdModuleName ++ " with " ++ modelModuleName
             case (result, expectedResult) of
-                (True, True) -> pure $ SingleComparisonResult modelModuleName (Just modelCore) Similar
+                (True, True) -> SingleComparisonResult modelModuleName (Just modelCoreProgram) Similar
                 (False, False) ->
-                    pure $
-                        SingleComparisonResult modelModuleName (Just modelCore) NotSimilarButExpected
-                (False, True) -> pure $ SingleComparisonResult modelModuleName (Just modelCore) ExpectedWrong
+                        SingleComparisonResult modelModuleName (Just modelCoreProgram) NotSimilarButExpected
+                (False, True) -> SingleComparisonResult modelModuleName (Just modelCoreProgram) ExpectedWrong
                 (True, False) ->
-                    pure $
-                        SingleComparisonResult modelModuleName (Just modelCore) UnexpectedSimilar
+                        SingleComparisonResult modelModuleName (Just modelCoreProgram) UnexpectedSimilar
 
 
 -- | Extract all Model Solutions' Core representations by only firing up GHC once 

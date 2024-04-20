@@ -1,8 +1,13 @@
 dist-newstyle/
 .vscode/
-./modelCOre-output.hs
+./modelCore-output.hs
 ./stdCore-output.hs
 
 ghcTestCases/*.dump-simpl
 ghcTestCases/*.hi
 ghcTestCases/*.o
+ask2elle.eventlog
+ask2elle.eventlog.html
+ask2elle.hp
+ask2elle.prof
+cabal.project.local

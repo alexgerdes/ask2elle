@@ -129,6 +129,16 @@ executable ask2elle
   -- import:           common-warnings
   import:           common-extensions
   main-is:          Main.hs
+  ghc-options:
+    -O2
+    -threaded
+    -fprof-auto
+    -prof
+    -eventlog
+    "-with-rtsopts=-N -p -s -l -hT -i0.5 "
+    -- N for concurrency 
+    -- p produces  a standard time profile report ( the .prof file)
+
   build-depends:
     , base        ^>=4.16.4.0
     , bytestring

@@ -63,6 +63,25 @@ compileToCore exerciseName inputSolution f = do
             GHC.appendStringBuffers (GHC.stringToStringBuffer inputSolution) fusionRule
     runReaderT f $ ToCoreOption solution exerciseName
 
+compSimplNormalised :: ReaderT ToCoreOption (ExceptT ToCoreError IO) ToCoreOutput
+-- | Desugar, preprocess and simplify the program, then normalise it
+compSimplNormalised = do
+    libDirPath' <- liftIO libDirPath
+    GHC.defaultErrorHandler
+        GHC.defaultFatalMessager
+        GHC.defaultFlushOut
+        $ GHC.runGhcT (Just libDirPath')
+        $ runToCore
+        $ do
+            (coreProg, parsedSource) <- desugarPreprocessSimplification
+            uniqTopLevelLetRecSupply <- liftIO $ GHC.mkSplitUniqSupply 'R'
+            fnName <- liftToCore $ asks compilingModuleName
+            let (normalizedProg, alphaRenamingMapping) = normalise fnName uniqTopLevelLetRecSupply coreProg
+            exerciseName <- liftToCore $ asks compilingModuleName
+            let removedTyEvidenceProg = removeTyEvidence normalizedProg
+            return $ ToCoreOutput removedTyEvidenceProg parsedSource alphaRenamingMapping exerciseName
+
+
 parameterizedCompSimplNormalized
     :: [NormalizationOption]
     -> [PostNormalizationOption]
@@ -77,7 +96,7 @@ parameterizedCompSimplNormalized normalizationChoice postNormalizationChoice = d
         $ do
             (coreProg, parsedSource) <- desugarPreprocessSimplification
             uniqTopLevelLetRecSupply <- liftIO $ GHC.mkSplitUniqSupply 'R'
-            task <- liftToCore $ asks getStudentExerciseName
+            task <- liftToCore $ asks compilingModuleName
             env <- GHC.getSession
             let normalizationOptions = normalizationOption task uniqTopLevelLetRecSupply env
             let normalizedProg = performNormalizationOptions normalizationChoice normalizationOptions coreProg
@@ -102,7 +121,7 @@ compDesPreNormalised = do
         $ runToCore
         $ do
             (coreProg, parsedSource, alphaRenamingMapping) <- desugarPreprocessNormalize
-            exerciseName <- liftToCore $ asks getStudentExerciseName
+            exerciseName <- liftToCore $ asks compilingModuleName
             return $ ToCoreOutput coreProg parsedSource alphaRenamingMapping exerciseName
 
 compSimpl :: ReaderT ToCoreOption (ExceptT ToCoreError IO) ToCoreOutput
@@ -117,7 +136,7 @@ compSimpl = do
         $ runToCore
         $ do
             (coreProg, parsedSource) <- desugarPreprocessSimplification
-            exerciseName <- liftToCore $ asks getStudentExerciseName
+            exerciseName <- liftToCore $ asks compilingModuleName
             let (coreProg', alphaRenamingMapping) = alpha exerciseName coreProg
             return $
                 ToCoreOutput
@@ -138,7 +157,7 @@ compDesugar = do
         $ runToCore
         $ do
             (coreProg, parsedSource) <- desugarPreprocess
-            exerciseName <- liftToCore $ asks getStudentExerciseName
+            exerciseName <- liftToCore $ asks compilingModuleName
             let (coreProg', alphaRenamingMapping) = alpha exerciseName coreProg
             return $
                 ToCoreOutput

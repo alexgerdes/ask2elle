@@ -26,6 +26,7 @@
             zlib
             sqlite
             cloc 
+            eventlog
             # gcc
           ]);
         };

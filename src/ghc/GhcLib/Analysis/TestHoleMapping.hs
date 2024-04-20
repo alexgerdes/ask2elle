@@ -82,6 +82,7 @@ calculateRatio
 calculateRatio normalChoice postNormalChoice = do
     let computationFunction = parameterizedCompSimplNormalized normalChoice postNormalChoice
     tasks <- listDirectory "./ghcTestCases/tasks"
+    -- ^ task is a list of exercise names
     -- comparisonResult <- concatMap combinedComparisonResults . concat <$>  mapM (`getComparisonResult` f) tasks
     comparisonResult <- mapM (`getComparisonResult` computationFunction) tasks
     let sumbittedStudentSolutionCount = sum $ map length comparisonResult

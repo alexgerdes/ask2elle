@@ -30,17 +30,21 @@ import GhcLib.Transform.Transform
 --             T.putStrLn errText
 --         Right a -> T.putStrLn $ ppModule a
 
+
+printOutTargetCore :: IO ()
+printOutTargetCore = do
+    let studentSolP= "./ghcTestCases/tasks/Duplicate/shouldMatch/submitSolutions/Test2.hs"
+    stdSolCode <- readFile' studentSolP
+    let modelSolP= "./ghcTestCases/tasks/Duplicate/modelSolutions/Mod3.hs"
+    modelSolCode <- readFile' modelSolP
+    result <- comparePrograms compDesugar True ("Test2",stdSolCode) ("Mod3",modelSolCode)
+    print result
+
 main :: IO ()
 main = do
-    -- let studentSolP= "./ghcTestCases/tasks/Duplicate/shouldMatch/submitSolutions/Test2.hs"
-    -- stdSolCode <- readFile' studentSolP
-    -- let modelSolP= "./ghcTestCases/tasks/Duplicate/modelSolutions/Mod3.hs"
-    -- modelSolCode <- readFile' modelSolP
-    -- result <- comparePrograms compSimplNormalised True ("Test2",stdSolCode) ("Mod3",modelSolCode)
-    -- print result
     -- summarizeComparisonResult result
     let allOptions =
-            [ (x, y) | x <- take 2 $ permutations allNormalizationOptions, y <- allPossiblePostNormalizationOptions
+            [ (x, y) | x <- take 1 $ permutations allNormalizationOptions, y <- allPossiblePostNormalizationOptions
             ]
     testCount <-
         mapM

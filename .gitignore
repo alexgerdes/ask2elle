@@ -1,5 +1,7 @@
 dist-newstyle/
 .vscode/
+./modelCOre-output.hs
+./stdCore-output.hs
 
 ghcTestCases/*.dump-simpl
 ghcTestCases/*.hi

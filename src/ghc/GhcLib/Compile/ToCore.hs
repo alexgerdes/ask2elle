@@ -38,6 +38,7 @@ import Data.Time.Clock
 import System.FilePath (takeBaseName)
 import System.IO (stdout)
 import System.Process (readProcess)
+import qualified Data.List.NonEmpty as NonEmptyList
 
 import Control.Monad.RWS (MonadState (put))
 import Debug.Trace (traceM)
@@ -51,9 +52,14 @@ import GhcLib.Transform.Remove (removeTyEvidence)
 import GhcLib.Transform.Transform
 import GhcLib.Utility.Flags
 
+newtype ToCoreInput = ToCoreInput {
+    getToCoreInput :: NonEmptyList.NonEmpty ToCoreOption
+} deriving stock (Show)
+
+
 data ToCoreOption = ToCoreOption
-    { getStudentSolution :: GHC.StringBuffer
-    , getStudentExerciseName :: String
+    { compilingProgram :: GHC.StringBuffer
+    , compilingModuleName :: String
     }
     deriving stock (Show)
 
@@ -192,7 +198,7 @@ loadWithoutPlugins targetFile = do
     -- Nothing
     -- GHC.setSessionDynFlags dflags{GHC.outputFile_ = Nothing}
     GHC.setTargets [targetFile]
-    hsFile <- liftToCore $ asks getStudentExerciseName
+    hsFile <- liftToCore $ asks compilingModuleName
     -- \* The following only perform dependency analysis
     maybeLoaded <-
         GHC.handleSourceError
@@ -301,8 +307,8 @@ loadWithoutPlugins targetFile = do
 
 initEnv :: Bool -> [GHC.GeneralFlag] -> ToCore (IORef [Warning])
 initEnv keepDefaultFlags flags = do
-    solution <- liftToCore $ asks getStudentSolution
-    exerciseName <- liftToCore $ asks getStudentExerciseName
+    solution <- liftToCore $ asks compilingProgram
+    exerciseName <- liftToCore $ asks compilingModuleName
     setFlags keepDefaultFlags flags
     -- logger <- GHC.getLogger
     -- ! Not sure whether we need this in the future
@@ -323,7 +329,7 @@ desugarToCore
 
 -- | Compile a haskell file to the desugar pass + simple optimiser and return Modguts and warnings
 desugarToCore keepExistingFlags flags = do
-    hsFile <- liftToCore $ asks getStudentExerciseName
+    hsFile <- liftToCore $ asks compilingModuleName
     ref <- initEnv keepExistingFlags flags
     -- \* Check target exists in the module graph
     modSum <- getMaybeSModSummary $ GHC.mkModuleName hsFile
@@ -400,7 +406,7 @@ desugarPreprocessNormalize = do
     uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
     let prog = preProcess uniqHoleSupply $ GHC.mg_binds mgCore
     uniqTopLevelLetRecSupply <- liftIO $ GHC.mkSplitUniqSupply 'R'
-    fnName <- liftToCore $ asks getStudentExerciseName
+    fnName <- liftToCore $ asks compilingModuleName
     let (normalizedProg, alphaRenamingMapping) = normalise fnName uniqTopLevelLetRecSupply prog
     -- liftIO $ putStrLn $ show normalizedProg
     -- liftIO $ putStrLn "\n------------------------------------"

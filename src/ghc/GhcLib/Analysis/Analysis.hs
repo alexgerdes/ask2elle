@@ -213,3 +213,6 @@ compareAgainstModel compileFun expectedResult studentCoreProgram (modelModuleNam
                 (True, False) ->
                     pure $
                         SingleComparisonResult modelModuleName (Just modelCore) UnexpectedSimilar
+
+
+-- | Extract all Model Solutions' Core representations by only firing up GHC once 

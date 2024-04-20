@@ -134,8 +134,9 @@ executable ask2elle
     -threaded
     -fprof-auto
     -prof
+    -rtsopts
     -eventlog
-    "-with-rtsopts=-N -p -s -l -hT -i0.5 "
+  -- "-with-rtsopts=-N -p -s -l -hT -i0.5 "
     -- N for concurrency 
     -- p produces  a standard time profile report ( the .prof file)
 

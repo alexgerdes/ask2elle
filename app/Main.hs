@@ -44,7 +44,7 @@ main :: IO ()
 main = do
     -- summarizeComparisonResult result
     let allOptions =
-            [ (x, y) | x <- take 1 $ permutations allNormalizationOptions, y <- allPossiblePostNormalizationOptions
+            [ (x, y) | x <- take 2 $ permutations allNormalizationOptions, y <- allPossiblePostNormalizationOptions
             ]
     testCount <-
         mapM

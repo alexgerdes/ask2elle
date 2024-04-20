@@ -387,7 +387,7 @@ desugarPreprocess = do
 desugarPreprocessSimplification :: ToCore [(GHC.CoreProgram, GHC.ParsedSource)]
 -- |  a haskell file -> desugar pass(including simple optimiser) -> handling type hole error -> core-to-core simplification
 desugarPreprocessSimplification = do
-    desugaredCorePrograms <- desugarToCore False (holeFlags ++ genFlags)
+    desugaredCorePrograms <- desugarToCore False (holeFlags ++ genFlags ++ simplFlags)
     env <- GHC.getSession
     uniqHoleSupply <- liftIO $ GHC.mkSplitUniqSupply 'H'
     -- let prog = preProcess uniqHoleSupply (GHC.mg_binds mgCore)

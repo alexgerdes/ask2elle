@@ -22,6 +22,13 @@ FROM ubuntu:focal
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Berlin
 
+# install General Dependencies 
+RUN \ 
+  apt-get update -y && \
+  apt-get install -y --no-install-recommends \
+  fd-find \
+  libncurses5-dev
+
 # install Haskell-Related Dependencies
 RUN \
   apt-get update -y && \
@@ -42,6 +49,7 @@ RUN \
   automake \
   build-essential
 
+
 # install gpg keys
 
 # install ghcup
@@ -56,17 +64,19 @@ ARG HLS=2.8.0.0
 
 RUN \
   ghcup -v install ghc --isolate /usr/local --force ${GHC} && \
-  ghcup -v install cabal --isolate /usr/local/bin --force ${CABAL}
+  ghcup -v install cabal --isolate /usr/local/bin --force ${CABAL} && \ 
+  cabal update
+
 
 RUN \
   ghcup -v install hls --isolate /usr/local/bin/hls --force ${HLS} && \
   ln -s /usr/local/bin/hls/bin/haskell-language-server-wrapper /usr/local/bin/haskell-language-server-wrapper
 
-# Install General Development Tools 
-RUN \
-  ["apt-get", "install", "-y", "fd-find" , "git" ,"make",  "zlib1g", "libncurses5-dev"]
 
 
 WORKDIR /ask2elle
 
 COPY . .
+
+RUN \ 
+  cabal run ask2elle 

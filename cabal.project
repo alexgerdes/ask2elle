@@ -6,5 +6,5 @@ packages:
        ./
 
 
-tests: True
+-- tests: True
 

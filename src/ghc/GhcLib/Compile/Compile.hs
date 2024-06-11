@@ -58,11 +58,13 @@ type CompileFunction =
 --    | This function takes an exercise name and a solution, both have the type of String.AskelleOptions
 compileToCore
     :: [(String,String)] -> CompileFunction -> ExceptT ToCoreError IO ToCoreOutput
-compileToCore pairOfModuleNameAndSolution f = do
+compileToCore pairOfModuleNameAndSolution compileFun = do
     solutions <- mapM (\(moduleName,solution) -> do
-        newSolution <- liftIO $ GHC.appendStringBuffers (GHC.stringToStringBuffer solution) fusionRule
-        pure (moduleName, newSolution)) pairOfModuleNameAndSolution
-    runReaderT f $ ToCoreInput $ map  (uncurry ToCoreProgram) solutions
+                                        newSolution <- liftIO $
+                                            GHC.appendStringBuffers (GHC.stringToStringBuffer solution) fusionRule
+                                        pure (moduleName, newSolution)) 
+                        pairOfModuleNameAndSolution
+    runReaderT compileFun $ ToCoreInput $ map  (uncurry ToCoreProgram) solutions
 
 -- compSimplNormalised :: ReaderT ToCoreInput (ExceptT ToCoreError IO) ToCoreOutput
 -- -- | Desugar, preprocess and simplify the program, then normalise it

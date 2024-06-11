@@ -36,18 +36,18 @@ holeFlags :: [GHC.GeneralFlag]
 -- | General flags concerning typed holes
 holeFlags =
     [ -- show possible fits/suggestions in the warning message
-      GHC.Opt_ShowValidHoleFits
-    , -- Show constraints when reporting typed holes.
-      GHC.Opt_ShowHoleConstraints
-    , -- show the source location of the possible hole fits
-      GHC.Opt_ShowProvOfHoleFits
-    , GHC.Opt_ShowTypeAppVarsOfHoleFits
-    , GHC.Opt_ShowTypeAppOfHoleFits
-    , -- show the types of the possbile hole fits
-      GHC.Opt_ShowTypeOfHoleFits
-    , GHC.Opt_SortBySizeHoleFits
-    , GHC.Opt_ShowMatchesOfHoleFits
-    , GHC.Opt_UnclutterValidHoleFits
+      -- GHC.Opt_ShowValidHoleFits
+    -- , Show constraints when reporting typed holes.
+      -- GHC.Opt_ShowHoleConstraints
+    -- , show the source location of the possible hole fits
+      -- GHC.Opt_ShowProvOfHoleFits
+    -- GHC.Opt_ShowTypeAppVarsOfHoleFits
+    --, GHC.Opt_ShowTypeAppOfHoleFits
+    --, -- show the types of the possbile hole fits
+    --  GHC.Opt_ShowTypeOfHoleFits
+    --, GHC.Opt_SortBySizeHoleFits
+    --, GHC.Opt_ShowMatchesOfHoleFits
+    --, GHC.Opt_UnclutterValidHoleFits
     ]
 
 simplFlags :: [GHC.GeneralFlag]
@@ -64,18 +64,18 @@ genFlags :: [GHC.GeneralFlag]
 genFlags =
     [ -- -dcore-lint
       -- ? not sure this is needed, as the link [https://downloads.haskell.org/ghc/latest/docs/users_guide/debugging.html#ghc-flag--dcore-lint], it checks the GH C and its runtime , not the user code
-      GHC.Opt_DoCoreLinting
-    , -- Convert typed hole errors into warnings, deferring the error until runtime.
+    --   GHC.Opt_DoCoreLinting
+    -- , -- Convert typed hole errors into warnings, deferring the error until runtime.
       GHC.Opt_DeferTypedHoles
     , -- Turn type errors into warnings, deferring the error until runtime.
       GHC.Opt_DeferTypeErrors
-    , -- defer the printing of error messages and warnings until the end of the compilation process and to group them by severity.
-      GHC.Opt_DeferDiagnostics
-    , -- GHC will build a mapping from info table pointers to source locations and some extra type information.
-      -- track down memory leak using this : https://well-typed.com/blog/2021/01/first-look-at-hi-profiling-mode/
-      GHC.Opt_InfoTableMap
-    , -- automatically link in the base and rts packages.
-      GHC.Opt_AutoLinkPackages
+     -- defer the printing of error messages and warnings until the end of the compilation process and to group them by severity.
+    --   GHC.Opt_DeferDiagnostics
+    -- , -- GHC will build a mapping from info table pointers to source locations and some extra type information.
+    --   -- track down memory leak using this : https://well-typed.com/blog/2021/01/first-look-at-hi-profiling-mode/
+    --   GHC.Opt_InfoTableMap
+    --, -- automatically link in the base and rts packages.
+    --  GHC.Opt_AutoLinkPackages
     ]
 
 unsetGenFlags :: [GHC.GeneralFlag]

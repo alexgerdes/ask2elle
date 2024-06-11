@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wno-typed-holes #-}
 
 module Mod3 where
 

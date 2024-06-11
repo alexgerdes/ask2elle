@@ -152,7 +152,7 @@ data AnalysisInput = AnalysisInput
     -- ^ [(modelSolutionModuleName, modelSolutionContent)]
     }
 
--- Invariant : The file name,second input, should be the same as the module name, for student's solution, the third input
+-- Invariant : The file name,second input, should be the same as the module name, for student's solution
 analysisEntryPoint
     :: ExerciseName -> CompileFunction -> String -> String -> IO ComparisonResult
 analysisEntryPoint task f studentModuleName studentSolution = do

@@ -46,6 +46,7 @@ common common-extensions
     TypeApplications
     TypeFamilies
     TypeOperators
+    Strict
 
 common common-local-dependencies
   build-depends:

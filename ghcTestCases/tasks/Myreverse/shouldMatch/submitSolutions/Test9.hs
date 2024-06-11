@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-typed-holes #-}
 
-module Test5 where
+module Test9 where
 
 myreverse :: [a] -> [a]
 myreverse xs = let f = flip (:) in let g = fold f in g [] xs

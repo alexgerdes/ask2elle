@@ -156,6 +156,20 @@ Notes :
    1. If it is an unification algorithm, can it be interleaved with other transformation?
 2. The transformation `alphaRenaming` must be used in the last stage, prior to `RemoveTyEvidence`. 
 
-
-cabal run ask2elle -- +RTS -rtsopts -eventlog -O2 -RTS
+-- 2024/04/22 
+1. The ghc pipeline now takes a list of targets, increasing the testsuite significant.
+2. However, we cannot still run a full testsuite, but more than last time, as it still consumes too much memory.
+3. Lol, the equality check for type is not irrelvent. because we remove the typing information all after postNormalization techniques
+   
+cabal run ask2elle -- +RTS -N -p -s -l -hT -i0.5 -RTS
+-- -N for concurrency 
+-- -p produces a standard time profile report ( the .prof file)
+-- -s produces a more detailed summary at the end of the program
+-- -l produces the eventlog file 
+-- -hT  Generates a basic heap profile, in the file prog.hp
  eventlog2html ask2elle.eventlog -o ask2elle.eventlog.html
+
+
+# Weekly concers
+1. [ ] How to tackle space leaks in ask2elle
+2. [ ] Model solutions are expected to be well-typed. 

@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-typed-holes #-}
 
-module Test3 where
+module Test6 where
 
 fromBin bs = fromBin' l bs
   where

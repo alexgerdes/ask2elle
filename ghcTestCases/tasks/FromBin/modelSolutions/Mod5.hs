@@ -1,7 +1,8 @@
 {-# OPTIONS_GHC -Wno-typed-holes #-}
 
-module Mod3 where
+module Mod5 where
 
+fromBin :: (Num a) => [a] -> a
 fromBin bs = fromBin' (length bs - 1) bs
   where
     fromBin' _ [] = 0

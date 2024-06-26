@@ -2,7 +2,6 @@ cabal-version:   3.0
 name:            ask2elle
 version:         0.1.0.0
 license:         Apache-2.0
-
 -- author:
 -- maintainer:
 -- copyright:
@@ -148,15 +147,10 @@ executable ask2elle
     , mtl
     , tabular
     , text        ^>=2.0
-    , helium-stage
+    -- , helium-stage
   -- we can update text to 2.1 if the version constraint text , within parsec from Top, is updated.
   --  as the newst version of text and bytestring finally have the same underlying representation of byte arrays
 
-
-
-
-
-  -- , ask2elle-lib
   hs-source-dirs:   app
   default-language: Haskell2010
 

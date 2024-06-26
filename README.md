@@ -69,3 +69,7 @@ Useful commands for playing with the docker
    ```docker
    docker exec -it ask2elle-container bash
    ```
+
+
+## Entry Point for Ask2elle
+`parameterizedCompSimplNormalized` from module `GhcLib.Compile.Compile` is the entry point. It takes a list of `NormalizationOption` and `PostNormalizationOption` from module `GhcLib.Transform.Transform`. You can find the utility of each data constructor in the corresponding markdown file. 

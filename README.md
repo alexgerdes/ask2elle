@@ -43,8 +43,29 @@ Currently, the following steps must be performed manually to build the project. 
     cabal install askelle --overwrite-policy=always
     ```
 1. Add "~/.cabal/bin" to the path 
-       
 2. Run `heliumpath` in the shell and execute `make` in the corresponding `share/lib` directory.
 3. Navigate to the askelle directory and run `askelle.cgi --all-scripts`. This generates files in the scripts folder.
 4. The environment is now set up.
 
+
+## Dockerfile
+Right now, the dockerfile automatically run the testsuite. 
+
+Useful commands for playing with the docker
+1. 
+   Inside ask2elle directory, run the following command, create an image with the name ask2elle-image.
+   `GIT_USERNAME` and `GIT_TOKEN` need to be substituted with your own github username and personal access token. 
+   ```docker
+   docker build -t ask2elle-image --build-arg GIT_USERNAME=xxxxx --build-arg GIT_TOKEN=yyy .
+   ```
+2. 
+   Fire up a container, named as `ask2elle-container`, using `ask2elle-image` 
+   The `-t` flag allows the container continues to run, even though actions described in the dockerfile completed 
+   ```docker 
+   docker run -t --name ask2elle-container ask2elle-image
+   ```
+
+3. Hook up a local terminal with the `ask2elle-container` terminal
+   ```docker
+   docker exec -it ask2elle-container bash
+   ```

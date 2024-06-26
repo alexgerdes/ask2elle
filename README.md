@@ -35,14 +35,16 @@ Currently, the following steps must be performed manually to build the project. 
    ```
      This tells cabal to use local packages for building projects instead of fetching them from Hackage.
 
-4. WExecute the following commands:
+4. Execute the following commands:
     ```bash
     cabal install lvm --overwrite-policy=always 
     cabal install Top --overwrite-policy=always 
     cabal install helium --overwrite-policy=always 
     cabal install askelle --overwrite-policy=always
     ```
-5. Run `heliumpath` in the shell and execute `make` in the corresponding `share/lib` directory.
-6. Navigate to the askelle directory and run `askelle.cgi --all-scripts`. This generates files in the scripts folder.
-7. The environment is now set up.
+1. Add "~/.cabal/bin" to the path 
+       
+2. Run `heliumpath` in the shell and execute `make` in the corresponding `share/lib` directory.
+3. Navigate to the askelle directory and run `askelle.cgi --all-scripts`. This generates files in the scripts folder.
+4. The environment is now set up.
 

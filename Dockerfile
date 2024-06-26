@@ -1,22 +1,3 @@
-# FROM ubuntu:22.04
-
-# RUN ["apt-get", "update"]
-
-# RUN ["apt-get", "install", "-y", "build-essential", "curl", "libffi-dev", "libffi8ubuntu1", "libgmp-dev", "libgmp10", "libncurses-dev", "libncurses5", "libtinfo5"]
-# # Download dependencies for ghcup 
-# RUN ["sh", "-c", "curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_INSTALL_NO_STACK=1 BOOTSTRAP_HASKELL_GHC_VERSION=9.2.8"]
-
-# CMD ["/bin/bash"]
-# # RUN ["apt-get", "install", "-y", "fd-find git make zlib1g"]
-
-# # WORKDIR /ask2elle
-
-# # COPY . .
-
-# # ENV PORT=8080
-
-# # EXPOSE 8080
-
 FROM ubuntu:focal
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -47,10 +28,12 @@ RUN \
   gcc \
   autoconf \
   automake \
-  build-essential
+  build-essential 
 
+RUN \
+  apt-get install -y --no-install-recommends \
+  libsqlite3-dev 
 
-# install gpg keys
 
 # install ghcup
 RUN \
@@ -67,16 +50,75 @@ RUN \
   ghcup -v install cabal --isolate /usr/local/bin --force ${CABAL} && \ 
   cabal update
 
-
+# Install the Haskell-Language-Server
 RUN \
   ghcup -v install hls --isolate /usr/local/bin/hls --force ${HLS} && \
   ln -s /usr/local/bin/hls/bin/haskell-language-server-wrapper /usr/local/bin/haskell-language-server-wrapper
 
 
+# docker build -t ask2elle-image --build-arg GIT_USERNAME=xxxxx --build-arg GIT_TOKEN=yyy .
+# Beoth askelle repo and ask2elle repo are private repos. Therefore, we need to provide the credentials to access them.
+ARG GIT_USERNAME
+ARG GIT_TOKEN
+RUN git config --global credential.helper store
+RUN echo "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com" > /root/.git-credentials
 
-WORKDIR /ask2elle
-
-COPY . .
 
 RUN \ 
-  cabal run ask2elle 
+  git clone --branch ideas-bastiaan https://github.com/ideas-edu/ideas /app/ideas && \
+  git clone https://github.com/alexgerdes/lvm /app/lvm/ && \
+  git clone https://github.com/alexgerdes/Top /app/Top/ && \
+  git clone https://github.com/alexgerdes/helium /app/helium/ && \
+  git clone --branch hardcoded-exercises https://github.com/alexgerdes/askelle /app/askelle/ 
+
+WORKDIR /app/
+
+
+RUN cat <<EOL > cabal.project
+packages:
+        helium/
+        ideas/
+        lvm/
+        Top/
+        askelle/
+EOL
+
+RUN \ 
+  cabal install lvm --overwrite-policy=always && \
+  cabal install Top --overwrite-policy=always && \
+  cabal install helium --overwrite-policy=always && \
+  cabal install askelle --overwrite-policy=always
+
+# Add above built binaries to the PATH
+ENV PATH="/root/.local/bin:${PATH}"
+
+
+#Run the heliumpath command, extract the share path, and execute make in the share/lib directory
+RUN \
+  heliumpath_output=$(heliumpath) && \
+  share_path=$(echo "$heliumpath_output" | grep 'share$') && \
+  cd "$share_path/lib" && \
+  make
+
+RUN \ 
+  rm cabal.project
+
+
+
+WORKDIR /app/askelle
+
+RUN askelle.cgi --all-scripts
+
+WORKDIR /app/ask2elle
+
+COPY . /app/ask2elle 
+
+
+RUN \ 
+  cabal build all  
+
+
+RUN \ 
+  cabal test 
+
+

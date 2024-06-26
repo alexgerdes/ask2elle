@@ -1,9 +1,11 @@
 packages:
---        ../helium
---        ../ideas
---        ../lvm
---        ../Top
-       ./
+        ../helium
+        ../ideas
+        ../lvm
+        ../Top
+        ../askelle
+        ./
+       
 
 
 -- tests: True

@@ -49,7 +49,7 @@ Currently, the following steps must be performed manually to build the project. 
 
 
 ## Dockerfile
-Right now, the dockerfile automatically run the testsuite. 
+Right now, the dockerfile automatically runs the testsuite. 
 
 Useful commands for playing with the docker
 1. 
@@ -70,6 +70,32 @@ Useful commands for playing with the docker
    docker exec -it ask2elle-container bash
    ```
 
-
 ## Entry Point for Ask2elle
 `parameterizedCompSimplNormalized` from module `GhcLib.Compile.Compile` is the entry point. It takes a list of `NormalizationOption` and `PostNormalizationOption` from module `GhcLib.Transform.Transform`. You can find the utility of each data constructor in the corresponding markdown file. 
+
+## Some commands 
+`cabal run ask2elle` currently generate a csv file in which contains the matching ratio for every possible combination of `NormalizationOption` and `PostNormalizationOption`. Unfortunately, since the complexity of every possible combination is notoriously large and haskell is a lazy language, 16Gib Ram laptop cannot handle the amount of chunks created. And i'm too lazy to denote BangPatterns everywhere, `Strict` progma helps generating a coverage test and printing it out in `table.csv`.
+
+The following is a part of `table.csv`. 
+The number in the first row mark each run with an index 
+Under the associative index, we can know the order of performed normalization options. Both Run 1 and Run 2 run perform exactly the same options and in the same order. Run 2 differs from Run 1, by not using `RemoveTyEvidence` from `PostNormalizationOption`. In the Ratio, we can clearly see that `RemoveTyEvidence` brings significant unification ratio.
+
+For row `comparisonCount`, `matchedCount` and `unmatchedCount`. `comparisonCount` with $19$ means that we have total $19$ student solutions, `matchedCount` means there are $16$ of them match with at least one correct solutions. `ratio` is calculated by dividing `matchedCount` with `comparisonCount`.
+
+
+|                  | 1   | 2   |
+|:-----------------|:----|:----|
+| InlineBinds      | 1   | 1   |
+| RecToLetRec      | 2   | 2   |
+| RemoveEqCheck    | 3   | 3   |
+| EtaReduce        | 4   | 4   |
+| RemoveTyEvidence | 1   |     |
+| comparisonCount  | 19  | 19  |
+| matchedCount     | 16  | 2   |
+| unmatchedCount   | 3   | 17  |
+| ratio            | 84% | 10% |
+
+
+
+`cabal test` currently run the testsuite for `Helium` Compiler. There is no testsuite for `ask2elle` yet. 
+

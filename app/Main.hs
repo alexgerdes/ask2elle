@@ -4,7 +4,7 @@ import Data.ByteString qualified as BS
 import Data.Text.Encoding qualified as T
 import Data.Text.IO qualified as T
 import System.IO
-import Text.Tabular.AsciiArt
+import Text.Tabular.Csv
 
 -- import Helium.Helium
 -- import Helium.Utility.Compile (AskelleOptions (..), askelleDefaultOptions)
@@ -44,7 +44,7 @@ main :: IO ()
 main = do
     -- summarizeComparisonResult result
     let allOptions =
-            [ (x, y) | x <- take 1 $ permutations allNormalizationOptions, y <- allPossiblePostNormalizationOptions
+            [ (x, y) | x <- allPossibleNormalizationOptions, y <- allPossiblePostNormalizationOptions
             ]
     testCount <-
         mapM
@@ -57,6 +57,6 @@ main = do
                 calculateRatio normalChoice postNormalChoice
             )
             allOptions
-    let table = render id id id $ example (length testCount) testCount
-    putStrLn table
+    let !table = render id id id $ example (length testCount) testCount
+    writeFile "table.csv" table
     pure ()

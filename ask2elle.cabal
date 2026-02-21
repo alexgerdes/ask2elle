@@ -45,7 +45,7 @@ common common-extensions
     TypeApplications
     TypeFamilies
     TypeOperators
-    Strict 
+    Strict
 
 common common-local-dependencies
   build-depends:
@@ -82,13 +82,13 @@ library ghc-stage
     GhcLib.Transform.Transform
 
   build-depends:
-    , base           ^>=4.16.4.0
+    , base           >= 4.16.4.0 && < 4.19
     , containers
     , deepseq
     , directory
-    , exceptions     ^>=0.10.4
+    , exceptions     ^>= 0.10.4
     , filepath
-    , ghc            >=9.2.5     && <9.3
+    , ghc            >= 9.2.5
     , ghc-boot
     , ghc-boot-th
     , megaparsec
@@ -96,7 +96,7 @@ library ghc-stage
     , pretty-simple
     , process
     , tabular
-    , text           ^>=2.0
+    , text           ^>= 2.0
     , time
     , uniplate
 
@@ -114,7 +114,7 @@ library helium-stage
     Helium.Utility.PrettyPrinter
 
   build-depends:
-    , base        ^>=4.16.4.0
+    , base        >=4.16.4.0 && <4.19
     , containers
     , filepath
     , hlint
@@ -138,11 +138,11 @@ executable ask2elle
   --   -rtsopts
   --   -eventlog
   -- "-with-rtsopts=-N -p -s -l -hT -i0.5 "
-  -- N for concurrency 
+  -- N for concurrency
   -- p produces  a standard time profile report ( the .prof file)
 
   build-depends:
-    , base        ^>=4.16.4.0
+    , base        >=4.16.4.0 && <4.19
     , bytestring
     , ghc-stage
     , mtl
@@ -164,7 +164,7 @@ test-suite helium-test
   main-is:          Main.hs
   other-modules:    Helium.Test
   build-depends:
-    , base          ^>=4.16.4.0
+    , base          >=4.16.4.0 && <4.19
     , bytestring
     , conduit
     , directory

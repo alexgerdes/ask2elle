@@ -21,14 +21,13 @@ import GHC.Core
     )
 import GHC.Core.DataCon (DataCon (..), dataConName)
 import GHC.Core.TyCo.Rep
-    ( AnonArgFlag (VisArg)
-    , Coercion
+    ( Coercion
     , Kind
     , TyLit (StrTyLit)
     , Type (..)
     )
 import GHC.Core.TyCon (TyCon)
-import GHC.Core.Type (eqType)
+import GHC.Core.TyCo.Compare (eqType)
 import GHC.Core.Type qualified as GHC
 import GHC.Data.FastString (fsLit)
 import GHC.Types.Literal (LitNumType, Literal (..))
@@ -205,7 +204,7 @@ instance Similar Var where
 
 instance Similar Type where
     (~>) :: Type -> Type -> Bool
-    k1 ~> k2 = GHC.eqType k1 k2
+    k1 ~> k2 = eqType k1 k2
 
     -- GHC.deBruijnize k1 == GHC.deBruijnize k2  -- GHC.eqType k1 k2
     -- ! Could do some subtyping checkin -- here

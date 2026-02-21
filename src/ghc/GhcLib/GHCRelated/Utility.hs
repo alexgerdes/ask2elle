@@ -18,7 +18,7 @@ import GHC.Runtime.Interpreter qualified as GHC
 import GHC.Types.Error qualified as GHC
 import GHC.Unit.Home.ModInfo qualified as GHC
 import GHC.Unit.Module.Graph qualified as GHC
-import GHC.Unit.Module.Name qualified as GHC
+-- import GHC.Unit.Module.Name qualified as GHC
 import GHC.Utils.Error qualified as GHCUtils
 import GHC.Utils.Logger qualified as GHCLogger
 import GHC.Utils.Ppr qualified as GHC

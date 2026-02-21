@@ -1,12 +1,33 @@
-packages:
-        ../helium
-        ../ideas
-        ../lvm
-        ../Top
-        ../askelle
-        ./
-       
+packages: .
+
+-- Adding a broader range for mtl dependency to resolve conflicts
+build-depends: mtl >= 2.2 && < 2.4
 
 
--- tests: True
+-- Helium compiler/library
+source-repository-package
+  type: git
+  location: https://github.com/alexgerdes/helium
+  tag: master
+
+-- Top constraint solving framework
+source-repository-package
+  type: git
+  location: https://github.com/alexgerdes/Top
+  tag: master
+
+-- LVM runtime + libraries (repo contains multiple packages; list subdirs)
+source-repository-package
+  type: git
+  location: https://github.com/alexgerdes/lvm
+  tag: master
+ -- subdir:
+ --   lvmlib
+ --   lvmrun
+
+-- IDEAS framework
+source-repository-package
+  type: git
+  location: https://github.com/ideas-edu/ideas
+  tag: 79453dd2ad3d5fc00d4edf0b4511b4abaff5613a
 

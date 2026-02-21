@@ -10,9 +10,9 @@ import GhcLib.GHCRelated.Bag ()
 -- \| A variant of getModSummary presented in the GHC API documentation.
 import GHC.Core.Map.Type qualified as GHC
 
-instance Eq (GHC.DeBruijn GHC.Var) where
-    (==) :: GHC.DeBruijn GHC.Var -> GHC.DeBruijn GHC.Var -> Bool
-    (==) = eqDeBruijnVar
+-- instance Eq (GHC.DeBruijn GHC.Var) where
+--     (==) :: GHC.DeBruijn GHC.Var -> GHC.DeBruijn GHC.Var -> Bool
+--     (==) = eqDeBruijnVar
 
 eqDeBruijnVar :: GHC.DeBruijn GHC.Var -> GHC.DeBruijn GHC.Var -> Bool
 eqDeBruijnVar (GHC.D env1 v1) (GHC.D env2 v2) =

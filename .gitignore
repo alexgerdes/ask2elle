@@ -10,3 +10,5 @@ ghcTestCases/*.o
 ask2elle.eventlog*
 ask2elle.hp*
 ask2elle.prof*
+.DS_Store
+/tags

@@ -7,12 +7,14 @@ import GHC.Conc qualified as GHC
 import GHC.Core.Opt.Pipeline qualified as GHC
 import GHC.Data.Bag qualified as GHC
 import GHC.Data.EnumSet qualified as GHCEnumSet
+import GHC.Data.FastString qualified as GHC
 import GHC.Data.Graph.Directed qualified as GHC
 import GHC.Data.StringBuffer qualified as GHC
 import GHC.Driver.Main qualified as GHC
 import GHC.Driver.Make qualified as GHC
 import GHC.Driver.Monad qualified as GHC
 import GHC.Driver.Session qualified as GHC
+import GHC.Driver.Errors.Types qualified as GHC
 import GHC.LanguageExtensions.Type qualified as GHC
 import GHC.Linker.Types qualified as GHC
 import GHC.Plugins qualified as GHC
@@ -20,9 +22,11 @@ import GHC.Runtime.Interpreter qualified as GHC
 import GHC.Types.Error qualified as GHC
 import GHC.Unit.Home.ModInfo qualified as GHC
 import GHC.Unit.Module.Graph qualified as GHC
-import GHC.Unit.Module.Name qualified as GHC
+import GHC.Unit.Types qualified as GHC
+-- import GHC.Unit.Module.Name qualified as GHC
 import GHC.Utils.Error qualified as GHCUtils
 import GHC.Utils.Logger qualified as GHCLogger
+import GHC.Utils.Outputable qualified as GHC
 import GHC.Utils.Ppr qualified as GHC
 
 import Control.Exception (evaluate)
@@ -77,6 +81,9 @@ data ToCoreError
     | ParsingError GHC.ErrorMessages
     | TypecheckingError GHC.ErrorMessages
     deriving stock (Show)
+
+instance Show GHC.ErrorMessages where
+  show = GHC.renderWithContext GHC.defaultSDocContext . GHC.ppr
 
 instance Exception ToCoreError
 
@@ -207,7 +214,7 @@ loadWithoutPlugins targetFile = do
     guardS
         (isRight maybeLoaded)
         (fromString $ "Error : Failed to parse " ++ hsFile)
-        (ParsingError $ fromLeft GHC.emptyBag maybeLoaded)
+        (ParsingError $ fromLeft GHC.emptyMessages maybeLoaded)
 
 -- guardS (GHC.succeeded $ fromRight GHC.Succeeded maybeLoaded) (fromString $ "Error : Failed to load target : " ++ targetFP) FailedLoading
 -- >>> take 10 [x | x <- [1..], odd x]
@@ -319,8 +326,8 @@ initEnv keepDefaultFlags flags = do
     -- (Target (TargetFile str (Just phase)) True Nothing)
     complieTime <- liftIO getCurrentTime
     let target =
-            GHC.Target (GHC.TargetFile "NeverExistedLocalFile.hs" Nothing) True $
-                Just (solution, complieTime)
+            GHC.Target (GHC.TargetFile "NeverExistedLocalFile.hs" Nothing) True
+                GHC.mainUnitId (Just (solution, complieTime))
     loadWithoutPlugins target
     return ref
 
@@ -345,7 +352,7 @@ desugarToCore keepExistingFlags flags = do
     guardS
         (isRight eitherParsed)
         (fromString $ "Error : Failed to parse " ++ hsFile)
-        (ParsingError $ fromLeft GHC.emptyBag eitherParsed)
+        (ParsingError $ fromLeft GHC.emptyMessages eitherParsed)
     -- \* Checking if the module is well-typed
     let safeParseResult =
             fromRight
@@ -360,7 +367,7 @@ desugarToCore keepExistingFlags flags = do
     guardS
         (isRight eitherTyped)
         (fromString $ "Error : Failed to type check " ++ hsFile)
-        (TypecheckingError $ fromLeft GHC.emptyBag eitherTyped)
+        (TypecheckingError $ fromLeft GHC.emptyMessages eitherTyped)
     -- \* Desugaring the typechecked module
     let typecheckedResult =
             fromRight
@@ -427,9 +434,8 @@ libDirPath = init <$> readProcess "ghc" ["--print-libdir"] ""
 guardS :: Bool -> GHC.SDoc -> ToCoreError -> ToCore ()
 guardS True _ _ = pure ()
 guardS False sdoc errorType = do
-    dynflags <- GHC.getDynFlags
     liftIO $
-        GHCLogger.defaultLogAction dynflags GHC.NoReason GHC.SevInfo GHC.noSrcSpan sdoc
+        GHCLogger.defaultLogAction GHCLogger.defaultLogFlags GHC.MCInfo GHC.noSrcSpan sdoc
     liftToCore $ throwError errorType
 
 liftToCore :: ReaderT ToCoreOption (ExceptT ToCoreError IO) a -> ToCore a

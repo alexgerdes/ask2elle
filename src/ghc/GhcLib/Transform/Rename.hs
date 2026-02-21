@@ -6,6 +6,7 @@ module GhcLib.Transform.Rename where
 import GHC.Core qualified as GHC
 import GHC.Core.Opt.Arity qualified as GHC
 import GHC.Core.Predicate qualified as GHC
+import GHC.Core.TyCo.Compare qualified as GHC ( eqType )
 import GHC.Core.Type qualified as GHC
 import GHC.Core.Utils qualified as GHC
 import GHC.Types.Id qualified as GHC

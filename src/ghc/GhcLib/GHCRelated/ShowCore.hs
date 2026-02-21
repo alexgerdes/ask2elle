@@ -24,7 +24,7 @@ import GHC.Core
 import GHC.Core.Coercion.Axiom (CoAxiom)
 import GHC.Core.ConLike (ConLike)
 import GHC.Core.DataCon (DataCon (..), dataConName, mkDataCon)
-import GHC.Core.TyCo.Rep (CoercionR, TyCoBinder, TyLit (..), Type (..))
+import GHC.Core.TyCo.Rep (CoercionR, TyLit (..), Type (..))
 import GHC.Core.TyCon (TyCon (..))
 import GHC.Data.EnumSet (EnumSet, toList)
 import GHC.Driver.Flags (GeneralFlag (..))
@@ -77,11 +77,10 @@ import GHC.Types.Tickish (CoreTickish)
 import GHC.Types.TyThing (TyThing (..))
 import GHC.Types.Unique.Set (UniqSet, pprUniqSet)
 import GHC.Types.Var
-    ( AnonArgFlag
-    , ArgFlag (..)
-    , Specificity (..)
+    ( Specificity (..)
     , TyCoVar
-    , TyCoVarBinder (..)
+    , ForAllTyFlag (..)
+    , FunTyFlag (..)
     , Var (..)
     , VarBndr (..)
     )
@@ -139,15 +138,13 @@ instance Show TyCon where
     show :: TyCon -> String
     show t = getOccString $ tyConName t
 
-deriving stock instance (Show a, Show b) => Show (VarBndr a b)
-
-deriving stock instance Show ArgFlag
-
 deriving stock instance Show Specificity
 
-instance Show AnonArgFlag where
-    show :: AnonArgFlag -> String
-    show = showSDocUnsafe . ppr
+deriving stock instance Show ForAllTyFlag
+
+deriving stock instance Show FunTyFlag
+
+deriving stock instance (Show a, Show b) => Show (VarBndr a b)
 
 deriving stock instance Show TyLit
 
